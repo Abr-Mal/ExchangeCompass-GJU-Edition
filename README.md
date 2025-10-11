@@ -41,4 +41,16 @@ The application provides the following actionable features:
 
 ### 🔒 4. Ethical & Security Commitments
 
-* **Data Integrity & Privacy:** All data collected via the survey includes a **mandatory
+* **Data Integrity & Privacy:** All data collected via the survey includes a **mandatory consent statement**. All data, regardless of source, is immediately **anonymized** before storage.
+* **No PII Stored:** No personal information (user names, IDs, email addresses, or direct source links) is ever stored or displayed.
+* **Scraping:** Web scraping is strictly limited to **publicly accessible, non-gated text** only and adheres to all ethical scraping practices (rate limiting, robots.txt consideration).
+
+---
+
+### 🔮 5. Project Status
+
+**Current Phase:** Week 1 - Foundation and Setup
+
+**Live Demo URL:** (To be added upon final deployment in Phase 5)
+
+**Creator:** [Abrahim Abu Malouh / https://github.com/Abr-Mal]
