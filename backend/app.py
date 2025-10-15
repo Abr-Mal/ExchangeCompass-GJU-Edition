@@ -28,7 +28,7 @@ def get_raw_reviews_text(uni_name):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT raw_review_text FROM exchange_db_jit1 WHERE uni_name = %s;",
+            "SELECT raw_review_text FROM exchange_reviews WHERE uni_name = %s;",
             (uni_name,)
         )
         # Flatten the list of tuples into a single list of strings
