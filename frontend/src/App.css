@@ -1,42 +1,193 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+:root {
+  --app-header-height: 96px;
+
+  /* === GJU Theme Colors === */
+  --primary-color: #F59F2E;    /* GJU orange */
+  --secondary-color: #4D82B8;  /* GJU blue */
+  --text-color: #736A65;       /* muted dark gray */
+  --bg-color: #FFFFFD;         /* off-white background */
+  --border-color: #A9A9A7;     /* light gray */
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* === Base Setup === */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  color: var(--text-color);
+  background: var(--bg-color);
+  font-family: "Segoe UI", Roboto, sans-serif;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+body {
+  padding-top: var(--app-header-height);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* === Fixed Header === */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--app-header-height);
+  background: var(--primary-color);
+  color: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
+  padding: 0 1rem;
 }
 
+.app-header .display-5 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+.app-header .lead {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* === Split Screen Layout === */
+.split-screen {
+  position: fixed;
+  top: var(--app-header-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+/* 50/50 split */
+.left-pane,
+.right-pane {
+  flex: 1 1 50%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.left-pane {
+  background: var(--bg-color);
+}
+.right-pane {
+  background: var(--bg-color);
+}
+
+/* === Card Styling === */
 .card {
-  padding: 2em;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-color);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  overflow: hidden;
 }
 
-.read-the-docs {
-  color: #888;
+.card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+}
+
+/* === Map Styling === */
+.leaflet-container,
+.map-container {
+  flex: 1 1 auto;
+  height: 100% !important;
+  width: 100% !important;
+  border-radius: 6px;
+}
+
+.card-header.bg-dark {
+  background-color: #0a58ca !important; /* your desired color */
+}
+
+/* === Reviews & AI Text === */
+.ai-review {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.reviews-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding-right: 0.25rem;
+}
+
+.review-item {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-meta {
+  font-size: 0.8rem;
+  color: var(--secondary-color);
+  margin-bottom: 0.25rem;
+}
+.review-body {
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+/* === Buttons === */
+.btn-primary,
+.btn-accent {
+  background-color: var(--primary-color);
+  color: var(--bg-color);
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.btn-primary:hover {
+  background-color: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+/* === Links === */
+a, .link {
+  color: var(--secondary-color);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* === Responsive Layout === */
+@media (max-width: 992px) {
+  .split-screen {
+    position: static;
+    flex-direction: column;
+    height: auto;
+  }
+  .left-pane,
+  .right-pane {
+    height: auto;
+    max-width: 100%;
+  }
+  .card-body {
+    padding: 0.75rem;
+  }
 }
