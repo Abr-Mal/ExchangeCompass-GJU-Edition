@@ -4,6 +4,7 @@ import pandas as pd
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
 # Load environment variables (including GEMINI_API_KEY)
 load_dotenv()
@@ -15,6 +16,36 @@ try:
 except Exception as e:
     print(f"Error initializing Gemini client: {e}")
     exit()
+
+def parse_html_reviews(html_file_path):
+    """Parses the mock HTML file to extract university reviews."""
+    reviews_data = []
+    try:
+        with open(html_file_path, 'r', encoding='utf-8') as f:
+            soup = BeautifulSoup(f, 'html.parser')
+        
+        review_cards = soup.find_all('div', class_='uni-review-card')
+        
+        for card in review_cards:
+            uni_name = card.find('h4', class_='uni-name').get_text(strip=True) if card.find('h4', class_='uni-name') else None
+            city = card.find('p', class_='uni-city').get_text(strip=True) if card.find('p', class_='uni-city') else None
+            review_body = card.find('p', class_='review-body').get_text(strip=True) if card.find('p', class_='review-body') else None
+            
+            if uni_name and review_body: # City is optional, but name and review are essential
+                reviews_data.append({
+                    'uni_name': uni_name,
+                    'city': city,
+                    'raw_review_text': review_body,
+                    'source_type': 'html_scrape' # Indicate the source of this data
+                })
+    except FileNotFoundError:
+        print(f"❌ ERROR: HTML mock reviews file not found at {html_file_path}")
+        return []
+    except Exception as e:
+        print(f"❌ ERROR parsing HTML reviews: {e}")
+        return []
+    
+    return reviews_data
 
 def analyze_review_with_gemini(review_text, uni_name):
     """Sends the review to Gemini for ABSA and structured JSON return."""
@@ -63,39 +94,43 @@ def analyze_review_with_gemini(review_text, uni_name):
 def process_data_pipeline():
     """Reads raw CSV data, cleans it, and processes reviews with Gemini."""
 
-    # 1. READ DATA FROM CSV (Assuming you saved the file in the project root's data/ folder)
     csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'raw_survey_data.csv')
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'src', 'mock_reviews.html')
 
+    all_raw_data = []
+
+    # 1. READ DATA FROM CSV
     try:
-        # The 'Timestamp' column is automatically added by Google Forms; we drop it.
-        df = pd.read_csv(csv_path)
-
-        # --- RENAME COLUMNS TO MATCH YOUR SCHEMA (IMPORTANT!) ---
-        # You must rename the survey columns to match your desired internal schema keys (e.g., 'uni_name', 'raw_review_text').
-        df.rename(columns={
-            'Timestamp': 'date_collected', 
-            
-            # ⬅️ MAPPING THE UNIVERSITY AND CITY COLUMNS
-            'Which university are you rating?': 'uni_name', 
-            'City': 'city', 
-            
-            # ⬅️ MAPPING THE SCORE COLUMNS (These are direct 1-5 inputs from the survey)
+        df_csv = pd.read_csv(csv_path)
+        df_csv.rename(columns={
+            'Timestamp': 'date_collected',
+            'Which university are you rating?': 'uni_name',
+            'City': 'city',
             'Cost of living': 'cost_score',
             'Social scene quality': 'social_score',
             'Accommodation ease (How easy it is to find a living space)': 'accommodation_score',
-
-            # ⬅️ MAPPING THE CORE REVIEW TEXT COLUMN (The one causing the KeyError)
-            'Please provide your overall experience or any additional comments about your univerisity': 'raw_review_text', 
-
+            'Please provide your overall experience or any additional comments about your univerisity': 'raw_review_text',
         }, inplace=True)
+        # Convert DataFrame to a list of dictionaries
+        all_raw_data.extend(df_csv.to_dict(orient='records'))
 
     except FileNotFoundError:
         print(f"❌ ERROR: Raw survey data not found at {csv_path}")
+
+    # 2. READ DATA FROM MOCK HTML
+    html_reviews = parse_html_reviews(html_path)
+    all_raw_data.extend(html_reviews)
+
+    if not all_raw_data:
+        print("No data found from CSV or HTML. Returning empty list.")
         return []
+
+    # Convert combined data to a DataFrame for easier processing
+    df = pd.DataFrame(all_raw_data)
 
     processed_records = []
 
-    # 2. ITERATE, PROCESS, and ENRICH
+    # 3. ITERATE, PROCESS, and ENRICH
     for index, row in df.iterrows():
         # Skip reviews where the core text is missing
         if pd.isna(row['raw_review_text']):
