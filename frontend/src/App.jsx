@@ -53,11 +53,13 @@ function App() {
   };
 
   const fetchReviews = async (uniName) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
     setReviewsContent('Loading...');
+  
     try {
-      const res = await axios.get(`http://127.0.0.1:5000/api/reviews/${encodeURIComponent(uniName)}`);
-      // Backend returns either an object or an array of review records.
+      const res = await axios.get(`${BACKEND_URL}/api/reviews/${encodeURIComponent(uniName)}`);
       const data = res.data;
+  
       const read = (obj, keys) => {
         if (!obj) return null;
         for (const k of keys) {
@@ -65,91 +67,103 @@ function App() {
         }
         return null;
       };
-      const asNumber = v => {
+  
+      const asNumber = (v) => {
         if (v === null || v === undefined) return null;
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       };
-      // If it's an array, try to find theme_summary or summary fields
+  
       if (Array.isArray(data) && data.length > 0) {
-        // compute averages for common score fields across all review rows
-        const keysCost = ['avg_cost','cost_score','costScore','cost'];
-        const keysAcad = ['avg_academics','academic_score','academics_score','academics'];
-        const keysSocial = ['avg_social','social_score','student_life','social'];
-        const keysAcc = ['avg_accommodation','accommodation_score','housing','accommodation'];
-
+        const keysCost = ['avg_cost', 'cost_score', 'costScore', 'cost'];
+        const keysAcad = ['avg_academics', 'academic_score', 'academics_score', 'academics'];
+        const keysSocial = ['avg_social', 'social_score', 'student_life', 'social'];
+        const keysAcc = ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation'];
+  
         const sums = { cost: 0, acad: 0, social: 0, acc: 0 };
         const counts = { cost: 0, acad: 0, social: 0, acc: 0 };
-        data.forEach(r => {
+  
+        data.forEach((r) => {
           const c = asNumber(read(r, keysCost)); if (c !== null) { sums.cost += c; counts.cost += 1; }
           const a = asNumber(read(r, keysAcad)); if (a !== null) { sums.acad += a; counts.acad += 1; }
           const s = asNumber(read(r, keysSocial)); if (s !== null) { sums.social += s; counts.social += 1; }
           const ac = asNumber(read(r, keysAcc)); if (ac !== null) { sums.acc += ac; counts.acc += 1; }
         });
-
+  
         const avgCost = counts.cost ? +(sums.cost / counts.cost).toFixed(2) : null;
         const avgAcad = counts.acad ? +(sums.acad / counts.acad).toFixed(2) : null;
         const avgSocial = counts.social ? +(sums.social / counts.social).toFixed(2) : null;
         const avgAcc = counts.acc ? +(sums.acc / counts.acc).toFixed(2) : null;
-
-        // overall score: average of available metric averages
+  
         const overallParts = [avgCost, avgAcad, avgSocial, avgAcc].filter(v => v !== null);
-        const overall = overallParts.length ? +(overallParts.reduce((x,y) => x+y,0) / overallParts.length).toFixed(2) : null;
-
-        // merge these averaged values into selectedUni so UI shows them
-        setSelectedUni(prev => ({ ...(prev || {}), avg_cost: avgCost, avg_academics: avgAcad, avg_social: avgSocial, avg_accommodation: avgAcc, overall_score: overall, review_count: data.length }));
-
-        // store raw reviews for the scrollable list
+        const overall = overallParts.length ? +(overallParts.reduce((x, y) => x + y, 0) / overallParts.length).toFixed(2) : null;
+  
+        setSelectedUni(prev => ({
+          ...(prev || {}),
+          avg_cost: avgCost,
+          avg_academics: avgAcad,
+          avg_social: avgSocial,
+          avg_accommodation: avgAcc,
+          overall_score: overall,
+          review_count: data.length
+        }));
+  
         setReviewsRaw(data);
         setReviewsVisibleCount(5);
-
-        // Request the server to synthesize a single AI summary for this uni
+  
         await fetchAISummary(uniName);
       } else if (data && typeof data === 'object') {
-        // Single object response
-        // If the backend returns a single processed object with scores, merge them into selectedUni
-        const numeric = obj => (obj === undefined || obj === null) ? null : (Number.isFinite(Number(obj)) ? Number(obj) : obj);
-        // merge known numeric fields if present
-        setSelectedUni(prev => ({ ...(prev || {}),
-          avg_cost: read(data, ['avg_cost','cost_score','costScore','cost']) ?? prev?.avg_cost,
-          avg_academics: read(data, ['avg_academics','academic_score','academics_score','academics']) ?? prev?.avg_academics,
-          avg_social: read(data, ['avg_social','social_score','student_life','social']) ?? prev?.avg_social,
-          avg_accommodation: read(data, ['avg_accommodation','accommodation_score','housing','accommodation']) ?? prev?.avg_accommodation,
-          overall_score: read(data, ['overall_score','avg_overall','score','rating']) ?? prev?.overall_score,
+        const read = (obj, keys) => {
+          if (!obj) return null;
+          for (const k of keys) {
+            if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+          }
+          return null;
+        };
+  
+        setSelectedUni(prev => ({
+          ...(prev || {}),
+          avg_cost: read(data, ['avg_cost', 'cost_score', 'costScore', 'cost']) ?? prev?.avg_cost,
+          avg_academics: read(data, ['avg_academics', 'academic_score', 'academics_score', 'academics']) ?? prev?.avg_academics,
+          avg_social: read(data, ['avg_social', 'social_score', 'student_life', 'social']) ?? prev?.avg_social,
+          avg_accommodation: read(data, ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation']) ?? prev?.avg_accommodation,
+          overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? prev?.overall_score,
           review_count: data.review_count ?? prev?.review_count
         }));
-  // store single-object response as array for the reviews list
-  setReviewsRaw([data]);
-  setReviewsVisibleCount(5);
-  // Try server synthesis for a concise AI summary
-  await fetchAISummary(uniName);
+  
+        setReviewsRaw([data]);
+        setReviewsVisibleCount(5);
+        await fetchAISummary(uniName);
       } else if (typeof data === 'string') {
         setReviewsContent(data);
       } else {
         setReviewsContent('No AI summary available.');
       }
     } catch (err) {
-      setReviewsContent('Failed to fetch reviews.');
+      console.error("Error fetching reviews:", err);
+      setReviewsContent('Failed to fetch reviews from backend.');
     }
   };
+  
 
   // (filters and list removed; reviews handled via fetchReviews)
 
   // Fetching Aggregated Data
   useEffect(() => {
-    // 🚨 FETCHING FROM THE LIVE AGGREGATION API
-    axios.get('http://127.0.0.1:5000/api/unis') 
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
+  
+    axios.get(`${BACKEND_URL}/api/unis`)
       .then(response => {
         setUnis(response.data);
         setLoading(false);
       })
       .catch(err => {
         console.error("Error fetching data:", err);
-        setError("Failed to fetch university data from backend. Is the Flask server running?");
+        setError("Failed to fetch university data from backend. Please check if the server is running or reachable.");
         setLoading(false);
       });
-  }, []); 
-
+  }, []);
+  
   // Small helper to read a numeric score from multiple possible backend field names
   const readScore = (obj, keys) => {
     if (!obj) return null;
@@ -162,8 +176,11 @@ function App() {
 
   // Call the backend synthesis endpoint to get a single AI summary for the university
   const fetchAISummary = async (uniName) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
+  
     try {
-      const r = await axios.get(`http://127.0.0.1:5000/api/summary/${encodeURIComponent(uniName)}`);
+      const r = await axios.get(`${BACKEND_URL}/api/summary/${encodeURIComponent(uniName)}`);
+      
       if (r.data && r.data.summary) {
         setReviewsContent(String(r.data.summary));
       } else if (r.data && r.data.error) {
@@ -172,9 +189,11 @@ function App() {
         setReviewsContent('No AI summary available.');
       }
     } catch (e) {
-      setReviewsContent('Failed to fetch AI summary.');
+      console.error("Error fetching AI summary:", e);
+      setReviewsContent('Failed to fetch AI summary from backend.');
     }
   };
+  
 
   if (loading) return <h1 style={{color: 'blue'}}>Calculating Exchange Scores...</h1>;
   if (error) return <h1 style={{color: 'red'}}>Error: {error}</h1>;
