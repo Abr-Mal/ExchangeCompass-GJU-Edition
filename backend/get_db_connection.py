@@ -19,7 +19,8 @@ def get_db_connection():
             host=DB_HOST,
             database=DB_NAME,
             user=DB_USER,
-            password=DB_PASSWORD
+            password=DB_PASSWORD,
+            sslmode='require' # Add this line for SSL connection
         )
         return conn
     except Exception as e:
