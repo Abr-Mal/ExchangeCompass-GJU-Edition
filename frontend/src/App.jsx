@@ -130,7 +130,7 @@ function App() {
           overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? prev?.overall_score,
           review_count: data.review_count ?? prev?.review_count
         }));
-  
+  //hi
         setReviewsRaw([data]);
         setReviewsVisibleCount(5);
         await fetchAISummary(uniName);
