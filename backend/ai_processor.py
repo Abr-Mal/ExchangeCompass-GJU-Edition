@@ -10,12 +10,8 @@ from bs4 import BeautifulSoup
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Initialize the Gemini Client
-try:
-    client = genai.Client(api_key=GEMINI_API_KEY)
-except Exception as e:
-    print(f"Error initializing Gemini client: {e}")
-    exit()
+# Configure the Gemini API
+genai.configure(api_key=GEMINI_API_KEY)
 
 def parse_html_reviews(html_file_path):
     """Parses the mock HTML file to extract university reviews."""
@@ -71,19 +67,19 @@ def analyze_review_with_gemini(review_text, uni_name):
     Analyze the following review, which may be in English or Arabic. 
     Score each of the four categories from 1 (worst) to 5 (best) based only on the provided text.
     Translate the main point into a concise English summary.
-
+    
     Review Text: "{review_text}"
     """
-
+    
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash', # A fast, capable model
-            contents=prompt,
-            config=types.GenerateContentConfig(
+        model = genai.GenerativeModel(
+            model_name='gemini-2.5-flash',
+            generation_config=types.GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=response_schema
-            ),
+            )
         )
+        response = model.generate_content(prompt)
         # The response text will be a clean JSON string, which we parse
         return json.loads(response.text)
         
