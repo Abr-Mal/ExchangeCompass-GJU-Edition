@@ -52,30 +52,17 @@ def get_ai_summary(uni_name):
     # Combine reviews into a single string for the LLM context
     all_reviews_text = "\n---\n".join(raw_reviews_list)
     
-    # 2. Call the Gemini API for Synthesis
-    # NOTE: You MUST import the Gemini client setup from ai_processor.py or reconfigure it here.
-    from ai_processor import client # Assuming you set up the client correctly in ai_processor.py
+    # 2. Call the Gemini API for Synthesis using the function from ai_processor.py
+    from ai_processor import analyze_review_with_gemini
     
-    synthesis_prompt = f"""
-    You are the "ExchangeCompass Advisor". Your task is to synthesize a single, balanced narrative review (about 200 words) for the university "{uni_name}". 
-    
-    The review must cover the four main aspects: Academics, Cost of Living, Social Scene, and Accommodation.
-    
-    Synthesize the report from the following raw student feedback (which may contain both English and Arabic):
-    
-    --- START FEEDBACK ---
-    {all_reviews_text}
-    --- END FEEDBACK ---
-    
-    Focus on extracting the general consensus and noting any major conflicts in opinion. Structure the output as a single narrative paragraph.
-    """
-
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-pro', # Use the Pro model for better summarization over long context
-            contents=synthesis_prompt
-        )
-        return jsonify({"summary": response.text}), 200
+        # Call the dedicated AI analysis function
+        gemini_result = analyze_review_with_gemini(all_reviews_text, uni_name)
+
+        if gemini_result and gemini_result.get("theme_summary"):
+            return jsonify({"summary": gemini_result["theme_summary"]}), 200
+        else:
+            return jsonify({"error": "AI summary could not be generated or was empty."}), 500
     except Exception as e:
         return jsonify({"error": f"Synthesis failed: {e}"}), 500
 
