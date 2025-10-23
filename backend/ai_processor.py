@@ -56,7 +56,7 @@ def analyze_review_with_gemini(review_text, uni_name):
             "cost_score": {"type": "integer", "description": "Score from 1 (expensive) to 5 (cheap)."},
             "social_score": {"type": "integer", "description": "Score from 1 (poor) to 5 (excellent)."},
             "accommodation_score": {"type": "integer", "description": "Score from 1 (difficult) to 5 (easy/good)."},
-            "theme_summary": {"type": "string", "description": "A comprehensive narrative summary (around 250 words) covering academics, cost, social scene, and accommodation, including 1-2 direct quotes from the original review text to support the points."}
+            "theme_summary": {"type": "string", "description": "A concise narrative summary (around 30-40 words) using simple language, covering academics, cost, social scene, and accommodation, including a short quote from the original review text."}
         },
         "required": ["overall_sentiment", "academics_score", "cost_score", "social_score", "accommodation_score", "theme_summary"]
     }
@@ -64,11 +64,11 @@ def analyze_review_with_gemini(review_text, uni_name):
     # 2. Craft the Multilingual Prompt (The Magic)
     prompt = f"""
     You are an expert student advisor analyzing feedback for {uni_name}. 
-    Your goal is to synthesize a detailed, balanced narrative review (approximately 250 words) for the university "{uni_name}". 
+    Your goal is to synthesize a very concise, easy-to-understand narrative review (approximately 30-40 words) for the university "{uni_name}". 
     
-    The review must cover the four main aspects: Academics, Cost of Living, Social Scene, and Accommodation.
+    The review must briefly cover Academics, Cost of Living, Social Scene, and Accommodation, using simple, direct language.
     
-    Incorporate 1-2 direct, short quotes from the provided student feedback to illustrate or support your points. Ensure the summary is structured as a single narrative paragraph.
+    Include one very short, direct quote from the provided student feedback to support a key point. Ensure the summary is structured as a single narrative paragraph.
     
     Synthesize the report from the following raw student feedback (which may contain both English and Arabic):
     
