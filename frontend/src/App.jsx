@@ -44,6 +44,7 @@ function App() {
   const [reviewsRaw, setReviewsRaw] = useState([]);
   const [reviewsVisibleCount, setReviewsVisibleCount] = useState(5);
   const [showAIReview, setShowAIReview] = useState(false);
+  const [loadingAISummary, setLoadingAISummary] = useState(false);
 
   // When a marker is clicked, show its details in the right pane
   const handleMarkerClick = (uniData) => {
@@ -54,7 +55,7 @@ function App() {
 
   const fetchReviews = async (uniName) => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
-    setReviewsContent('Loading...');
+    // Removed setReviewsContent('Loading...') here, as AI summary loading is handled by loadingAISummary
   
     try {
       const res = await axios.get(`${BACKEND_URL}/api/reviews/${encodeURIComponent(uniName)}`);
@@ -130,7 +131,6 @@ function App() {
           overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? prev?.overall_score,
           review_count: data.review_count ?? prev?.review_count
         }));
-  //hi
         setReviewsRaw([data]);
         setReviewsVisibleCount(5);
         await fetchAISummary(uniName);
@@ -177,6 +177,7 @@ function App() {
   // Call the backend synthesis endpoint to get a single AI summary for the university
   const fetchAISummary = async (uniName) => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
+    setLoadingAISummary(true);
   
     try {
       const r = await axios.get(`${BACKEND_URL}/api/summary/${encodeURIComponent(uniName)}`);
@@ -191,12 +192,14 @@ function App() {
     } catch (e) {
       console.error("Error fetching AI summary:", e);
       setReviewsContent('Failed to fetch AI summary from backend. Please ensure the backend is running or try again later.');
+    } finally {
+        setLoadingAISummary(false);
     }
   };
   
 
   if (loading) return (
-    <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+    <div className="d-flex justify-content-center align-items-center w-100 h-100" style={{ height: '100vh' }}>
       <div className="text-center">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading universities...</span>
@@ -206,10 +209,10 @@ function App() {
     </div>
   );
   if (error) return (
-    <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+    <div className="d-flex justify-content-center align-items-center w-100 h-100" style={{ height: '100vh' }}>
       <div className="alert alert-danger text-center" role="alert">
         <h4 className="alert-heading">Connection Error!</h4>
-        <p>Failed to fetch university data from the backend. Please ensure the server is running and accessible.</p>
+        <p>Failed to fetch university data from the backend. Please ensure the server is running and reachable.</p>
         <p className="mb-0 small text-break">Details: {error}</p>
       </div>
     </div>
@@ -296,15 +299,17 @@ function App() {
 
                 {showAIReview && (
                   <div className="ai-review mb-3">
-                    {reviewsContent ? (
-                      <div className="small">{reviewsContent}</div>
-                    ) : (
+                    {loadingAISummary ? (
                       <div className="d-flex align-items-center justify-content-center h-100 text-muted">
                         <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
                           <span className="visually-hidden">Loading AI summary...</span>
                         </div>
-                        <div className="small text-muted">Loading AI summary...</div>
+                        <div className="small text-muted">Generating AI summary...</div>
                       </div>
+                    ) : reviewsContent ? (
+                      <div className="small">{reviewsContent}</div>
+                    ) : (
+                      <div className="small text-muted">No AI summary available for this university.</div>
                     )}
                   </div>
                 )}
