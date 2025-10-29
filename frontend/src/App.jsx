@@ -141,7 +141,7 @@ function App() {
       }
     } catch (err) {
       console.error("Error fetching reviews:", err);
-      setReviewsContent('Failed to fetch reviews from backend.');
+      setReviewsContent('Failed to fetch individual reviews from backend. Please try again later.');
     }
   };
   
@@ -184,19 +184,36 @@ function App() {
       if (r.data && r.data.summary) {
         setReviewsContent(String(r.data.summary));
       } else if (r.data && r.data.error) {
-        setReviewsContent(`AI synthesis error: ${r.data.error}`);
+        setReviewsContent(`AI synthesis error: ${r.data.error}.`);
       } else {
-        setReviewsContent('No AI summary available.');
+        setReviewsContent('No AI summary available for this university.');
       }
     } catch (e) {
       console.error("Error fetching AI summary:", e);
-      setReviewsContent('Failed to fetch AI summary from backend.');
+      setReviewsContent('Failed to fetch AI summary from backend. Please ensure the backend is running or try again later.');
     }
   };
   
 
-  if (loading) return <h1 style={{color: 'blue'}}>Calculating Exchange Scores...</h1>;
-  if (error) return <h1 style={{color: 'red'}}>Error: {error}</h1>;
+  if (loading) return (
+    <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+      <div className="text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading universities...</span>
+        </div>
+        <p className="mt-3">Loading university data...</p>
+      </div>
+    </div>
+  );
+  if (error) return (
+    <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+      <div className="alert alert-danger text-center" role="alert">
+        <h4 className="alert-heading">Connection Error!</h4>
+        <p>Failed to fetch university data from the backend. Please ensure the server is running and accessible.</p>
+        <p className="mb-0 small text-break">Details: {error}</p>
+      </div>
+    </div>
+  );
 
   // No list filters in the new layout — the map drives selection.
 
@@ -281,7 +298,14 @@ function App() {
                   <div className="ai-review mb-3">
                     {reviewsContent ? (
                       <div className="small">{reviewsContent}</div>
-                    ) : <div className="small text-muted">Loading...</div>}
+                    ) : (
+                      <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                          <span className="visually-hidden">Loading AI summary...</span>
+                        </div>
+                        <div className="small text-muted">Loading AI summary...</div>
+                      </div>
+                    )}
                   </div>
                 )}
 

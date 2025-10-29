@@ -46,7 +46,7 @@ def parse_html_reviews(html_file_path):
 def analyze_review_with_gemini(review_text, uni_name):
     """Sends the review to Gemini for ABSA and structured JSON return."""
     
-    # 1. Define the Structured Output Schema (Pydantic style for clarity)
+    # 1. Define the Structured Output Schema (Pydantic style for clarity).
     # This is critical for getting clean, reliable data into your DB.
     response_schema = {
         "type": "object",
@@ -84,24 +84,27 @@ def analyze_review_with_gemini(review_text, uni_name):
             )
         )
         response = model.generate_content(prompt)
-        # The response text will be a clean JSON string, which we parse
+        # The response text will be a clean JSON string, which we parse.
         return json.loads(response.text)
         
     except Exception as e:
-        print(f"Gemini API call failed: {e}")
+        print(f"❌ Gemini API call failed for {uni_name}: {e}")
         return None
 
 def process_data_pipeline():
     """Reads raw CSV data, cleans it, and processes reviews with Gemini."""
 
-    csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'raw_survey_data.csv')
-    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'src', 'mock_reviews.html')
+    # Construct absolute paths to data files.
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_path = os.path.join(script_dir, '..', 'data', 'raw_survey_data.csv')
+    html_path = os.path.join(script_dir, '..', 'frontend', 'src', 'mock_reviews.html')
 
     all_raw_data = []
 
     # 1. READ DATA FROM CSV
     try:
         df_csv = pd.read_csv(csv_path)
+        # Rename columns for consistency and clarity in the processing pipeline.
         df_csv.rename(columns={
             'Timestamp': 'date_collected',
             'Which university are you rating?': 'uni_name',
@@ -111,108 +114,72 @@ def process_data_pipeline():
             'Accommodation ease (How easy it is to find a living space)': 'accommodation_score',
             'Please provide your overall experience or any additional comments about your univerisity': 'raw_review_text',
         }, inplace=True)
-        # Convert DataFrame to a list of dictionaries
+        # Convert DataFrame rows to a list of dictionaries.
         all_raw_data.extend(df_csv.to_dict(orient='records'))
 
     except FileNotFoundError:
         print(f"❌ ERROR: Raw survey data not found at {csv_path}")
+    except Exception as e:
+        print(f"❌ ERROR reading or processing CSV data: {e}")
 
     # 2. READ DATA FROM MOCK HTML
     html_reviews = parse_html_reviews(html_path)
     all_raw_data.extend(html_reviews)
 
     if not all_raw_data:
-        print("No data found from CSV or HTML. Returning empty list.")
+        print("⚠️ WARNING: No data found from CSV or HTML. Returning empty list for processing.")
         return []
 
-    # Convert combined data to a DataFrame for easier processing
+    # Convert combined data to a DataFrame for easier processing.
     df = pd.DataFrame(all_raw_data)
 
     processed_records = []
 
-    # 3. ITERATE, PROCESS, and ENRICH
+    # 3. ITERATE, PROCESS, and ENRICH each review using the Gemini AI.
     for index, row in df.iterrows():
-        # Skip reviews where the core text is missing
+        # Skip reviews where the core text is missing to avoid unnecessary AI calls.
         if pd.isna(row['raw_review_text']):
+            print(f"⚠️ Skipping review for {row.get('uni_name', 'Unknown Uni')} due to missing raw_review_text.")
             continue
 
-        # Ensure you pass the correct data to Gemini's prompt:
+        # Call the Gemini API to analyze the review.
         gemini_result = analyze_review_with_gemini(row['raw_review_text'], row['uni_name'])
 
         if gemini_result:
-            record = {
-                'uni_name': row['uni_name'],
-                'city': row['city'], # Ensure 'city' column exists in your CSV or add it manually!
-                'source_type': 'survey', 
-                'raw_review_text': row['raw_review_text'],
-                **gemini_result 
-            }
-            processed_records.append(record)
-            print(f"Successfully processed: {row['uni_name']}")
-
-    return processed_records
-
-    # --- SIMULATE GETTING DATA FROM GOOGLE SHEET ---
-    # NOTE: For now, manually create a small CSV/Excel file in your 'data/' folder 
-    # that mimics your Google Sheet output for testing.
-
-    # Data is simulated here (replace with actual Google Sheet/CSV read later)
-    # The 'raw_review_text' contains the multilingual input for Gemini
-    mock_raw_data = {
-        'uni_name': ['LMU Munich', 'LMU Munich', 'TUHH Hamburg'],
-        'raw_review_text': [
-            "The academics were fantastic, very challenging but worth it. However, the rent here is criminal for a student.", 
-            "الجامعة جيدة لكن صعوبة إيجاد سكن طلابي كانت مرهقة جداً.", # Arabic review
-            "Social life was okay, good parks, but the professors were a bit dull."
-        ],
-        'city': ['Munich', 'Munich', 'Hamburg']
-    }
-    df = pd.DataFrame(mock_raw_data)
-    
-    processed_records = []
-    for index, row in df.iterrows():
-        gemini_result = analyze_review_with_gemini(row['raw_review_text'], row['uni_name'])
-        
-        if gemini_result:
-            # Merge the result with the original data for the database insert
+            # Merge the AI-generated results with the original data.
             record = {
                 'uni_name': row['uni_name'],
                 'city': row['city'],
-                'source_type': 'survey',
+                'source_type': row.get('source_type', 'csv_survey'), # Default to csv_survey if not specified.
                 'raw_review_text': row['raw_review_text'],
-                # Add the scores from Gemini
-                **gemini_result 
+                **gemini_result # Unpack the dictionary containing AI scores and summary.
             }
             processed_records.append(record)
-            print(f"Successfully processed: {row['uni_name']}")
-    
+            print(f"✅ Successfully processed and enriched review for: {row['uni_name']}")
+        else:
+            print(f"❌ Failed to get Gemini result for review from {row.get('uni_name', 'Unknown Uni')}. Skipping.")
+
     return processed_records
 
-if __name__ == '__main__':
-    processed_data = process_data_pipeline()
-    # Next step (Day 9): Insert this processed_data into PostgreSQL
-    print("\n--- FINAL PROCESSED DATA SAMPLE ---")
-    print(processed_data[:2])
-
-    # Insert this function into your existing ai_processor.py file
+# --- DATABASE INSERTION FUNCTION ---
 def insert_records(records):
     """Inserts a list of processed review dictionaries into the PostgreSQL database."""
-    from app import get_db_connection # Import the connector function from app.py
+    from app import get_db_connection # Import the connector function from app.py to establish DB connection.
     
     conn = get_db_connection()
     if conn is None:
-        print("FATAL ERROR: Cannot insert data. Database connection failed.")
+        print("❌ FATAL ERROR: Cannot insert data. Database connection failed.")
         return
 
     cursor = conn.cursor()
-    # Define the columns that we are inserting data into
+    # Define the columns that we are inserting data into in the `exchange_reviews` table.
     columns = (
         "uni_name, city, source_type, raw_language, academics_score, "
         "cost_score, social_score, accommodation_score, theme_summary, raw_review_text"
     )
     
-    # Placeholder values for the SQL query (10 columns)
-    placeholders = ', '.join(['%s'] * 10) 
+    # Placeholder values for the SQL query (10 columns, matching the number of columns above).
+    placeholders = ', '.join(['%s'] * 10)
     
     sql_insert = f"""
         INSERT INTO exchange_reviews ({columns}) 
@@ -222,12 +189,15 @@ def insert_records(records):
     insert_count = 0
     try:
         for record in records:
-            # Prepare the tuple of values, ensuring the order matches the columns defined above
+            # Prepare the tuple of values, ensuring the order matches the columns defined above.
+            # A simple heuristic for language detection: check for presence of Arabic Unicode range.
+            raw_language_guess = 'ar' if any('\u0600' <= c <= '\u06FF' for c in record['raw_review_text']) else 'en'
+
             values = (
                 record['uni_name'],
                 record['city'],
-                record.get('source_type', 'ai_simulated'), # Use 'ai_simulated' as default for testing
-                'en' if any(c.isalpha() for c in record['raw_review_text']) and not any('\u0600' <= c <= '\u06FF' for c in record['raw_review_text']) else 'ar', # Simple language guess
+                record.get('source_type', 'unknown'), # Default to 'unknown' if source_type is missing.
+                raw_language_guess,
                 record['academics_score'],
                 record['cost_score'],
                 record['social_score'],
@@ -242,21 +212,20 @@ def insert_records(records):
         print(f"✅ SUCCESS: Successfully inserted {insert_count} records into the database.")
         
     except Exception as e:
-        conn.rollback() # Undo any partial inserts on error
-        print(f"❌ ERROR during insertion: {e}")
+        conn.rollback() # Rollback any partial inserts on error to maintain database consistency.
+        print(f"❌ ERROR during insertion into database: {e}")
         
     finally:
-        cursor.close()
-        conn.close()
+        if cursor: cursor.close()
+        if conn: conn.close()
 
-
-# --- Update the main execution block at the bottom of ai_processor.py ---
+# --- Main execution block when the script is run directly ---
 if __name__ == '__main__':
     print("--- Starting AI Processing Pipeline ---")
     processed_data = process_data_pipeline()
     
     if processed_data:
-        print(f"Pipeline complete. Inserting {len(processed_data)} records...")
+        print(f"Pipeline complete. Attempting to insert {len(processed_data)} records into the database...")
         insert_records(processed_data)
     else:
         print("No data processed. Database insertion skipped.")
