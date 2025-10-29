@@ -10,6 +10,8 @@
 
 ---
 
+**⚠️ Disclaimer:** This project uses **simulated and mock data** for demonstration and showcase purposes only. The university reviews, scores, and all related information are not real and should not be used for actual decision-making regarding exchange programs. The data is generated or curated to demonstrate the application's features and capabilities.
+
 ### ✨ 2. Core Features
 
 The application provides the following actionable features:
