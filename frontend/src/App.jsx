@@ -298,7 +298,7 @@ function App() {
                 </div>
 
                 {showAIReview && (
-                  <div className="ai-review mb-3">
+                  <div className="ai-review mb-3" style={{ minHeight: '100px' }}> {/* Added minHeight to prevent twitching */}
                     {loadingAISummary ? (
                       <div className="d-flex align-items-center justify-content-center h-100 text-muted">
                         <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
