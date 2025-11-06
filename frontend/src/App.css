@@ -63,7 +63,7 @@ body {
   gap: 1rem;
   padding: 1rem;
   box-sizing: border-box;
-  z-index: 100;
+  z-index: 100; /* Map and detail panes should be below the comparison bar */
 }
 
 /* New comparison view layout */
@@ -77,7 +77,19 @@ body {
   padding: 1rem;
   box-sizing: border-box;
   background: var(--bg-color); /* Ensure it has a background */
-  z-index: 1000; /* Higher z-index to cover the split-screen content */
+  z-index: 1000; /* This view should cover the map and detail pane */
+}
+
+/* Comparison bar styling */
+.comparison-bar {
+  position: relative; /* Create a new stacking context */
+  z-index: 1010; /* Ensure it's above everything else except possibly modals/tooltips */
+  height: var(--comparison-controls-height);
+  background: var(--bg-color); /* Match body background */
+  display: flex;
+  align-items: center; /* Vertically center buttons */
+  padding: 0 1rem; /* Add horizontal padding */
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05); /* Subtle shadow below the bar */
 }
 
 /* 50/50 split */

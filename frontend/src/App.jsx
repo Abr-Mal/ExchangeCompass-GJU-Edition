@@ -81,6 +81,8 @@ function App() {
         return Number.isFinite(n) ? n : null;
       };
   
+      let aiSummary = await fetchAISummary(uniName); // Fetch AI summary here
+  
       if (Array.isArray(data) && data.length > 0) {
         const keysCost = ['avg_cost', 'cost_score', 'costScore', 'cost'];
         const keysAcad = ['avg_academics', 'academic_score', 'academics_score', 'academics'];
@@ -112,14 +114,15 @@ function App() {
           avg_social: avgSocial,
           avg_accommodation: avgAcc,
           overall_score: overall,
-          review_count: data.length
+          review_count: data.length,
+          theme_summary: aiSummary // Store the fetched AI summary here
         }));
   
         setReviewsRaw(data);
         setReviewsVisibleCount(5);
+        setReviewsContent(aiSummary); // Set reviewsContent for single view
   
-        await fetchAISummary(uniName);
-        return { avgCost, avgAcad, avgSocial, avgAcc, overall, review_count: data.length, theme_summary: null }; // Return aggregated data
+        return { uni_name: uniName, city: data[0]?.city, avg_cost: avgCost, avg_academics: avgAcad, avg_social: avgSocial, avg_accommodation: avgAcc, overall_score: overall, review_count: data.length, theme_summary: aiSummary };
       } else if (data && typeof data === 'object') {
         const read = (obj, keys) => {
           if (!obj) return null;
@@ -136,31 +139,36 @@ function App() {
           avg_social: read(data, ['avg_social', 'social_score', 'student_life', 'social']) ?? prev?.avg_social,
           avg_accommodation: read(data, ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation']) ?? prev?.avg_accommodation,
           overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? prev?.overall_score,
-          review_count: data.review_count ?? prev?.review_count
+          review_count: data.review_count ?? prev?.review_count,
+          theme_summary: aiSummary // Store the fetched AI summary here
         }));
         setReviewsRaw([data]);
         setReviewsVisibleCount(5);
-        await fetchAISummary(uniName);
-        return { 
+        setReviewsContent(aiSummary); // Set reviewsContent for single view
+  
+        return {
+          uni_name: uniName, city: data?.city, 
           avg_cost: read(data, ['avg_cost', 'cost_score', 'costScore', 'cost']) ?? null,
           avg_academics: read(data, ['avg_academics', 'academic_score', 'academics_score', 'academics']) ?? null,
           avg_social: read(data, ['avg_social', 'social_score', 'student_life', 'social']) ?? null,
           avg_accommodation: read(data, ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation']) ?? null,
           overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? null,
           review_count: data.review_count ?? 0,
-          theme_summary: null
-        }; // Return aggregated data
+          theme_summary: aiSummary
+        };
       } else if (typeof data === 'string') {
         setReviewsContent(data);
-        return { theme_summary: data }; // Return summary string
+        return { uni_name: uniName, city: null, theme_summary: data };
       } else {
         setReviewsContent('No AI summary available.');
-        return { theme_summary: 'No AI summary available.' };
+        return { uni_name: uniName, city: null, theme_summary: 'No AI summary available.' };
       }
     } catch (err) {
       console.error("Error fetching reviews:", err);
       setReviewsContent('Failed to fetch individual reviews from backend. Please try again later.');
-      return { theme_summary: 'Failed to fetch reviews.' };
+      return { uni_name: uniName, city: null, theme_summary: 'Failed to fetch reviews.' };
+    } finally {
+        // setLoadingAISummary(false); // fetchAISummary now handles its own loading state
     }
   };
   
@@ -177,17 +185,21 @@ function App() {
 
     if (!compareUni1) {
       setCompareUni1(uniWithDetails);
-    } else if (compareUni1 && uniWithDetails.uni_name === compareUni1.uni_name) {
+    } else if (compareUni1.uni_name === uniWithDetails.uni_name) {
       // Deselect Uni 1 if clicked again
       setCompareUni1(null);
     } else if (!compareUni2) {
+      // Check if Uni 2 is different from Uni 1 before setting
+      if (compareUni1 && uniWithDetails.uni_name === compareUni1.uni_name) {
+        console.log("Attempted to select the same university for both comparison slots.");
+        return; // Prevent selecting the same university twice
+      }
       setCompareUni2(uniWithDetails);
-    } else if (compareUni2 && uniWithDetails.uni_name === compareUni2.uni_name) {
+    } else if (compareUni2.uni_name === uniWithDetails.uni_name) {
       // Deselect Uni 2 if clicked again
       setCompareUni2(null);
     } else {
-      // If both are selected and a new one is clicked, maybe replace one or do nothing
-      console.warn("Both comparison slots are full. Cannot add more for now.");
+      console.warn("Both comparison slots are full. To compare a new university, please deselect one first.");
     }
   };
 
@@ -228,18 +240,18 @@ function App() {
       const r = await axios.get(`${BACKEND_URL}/api/summary/${encodeURIComponent(uniName)}`);
       
       if (r.data && r.data.summary) {
-        setReviewsContent(String(r.data.summary));
+        // Removed direct setReviewsContent here, as fetchReviews will handle it
         return String(r.data.summary);
       } else if (r.data && r.data.error) {
-        setReviewsContent(`AI synthesis error: ${r.data.error}.`);
+        // Removed direct setReviewsContent here
         return `AI synthesis error: ${r.data.error}.`;
       } else {
-        setReviewsContent('No AI summary available for this university.');
+        // Removed direct setReviewsContent here
         return 'No AI summary available.';
       }
     } catch (e) {
       console.error("Error fetching AI summary:", e);
-      setReviewsContent('Failed to fetch AI summary from backend. Please ensure the backend is running or try again later.');
+      // Removed direct setReviewsContent here
       return 'Failed to fetch AI summary.';
     } finally {
         setLoadingAISummary(false);
@@ -298,7 +310,7 @@ function App() {
     </header>
 
     {/* Comparison Controls (visible above the split view) */}
-    <div className="d-flex justify-content-center mb-3">
+    <div className="comparison-bar d-flex justify-content-center mb-3">
       <Button 
         variant="primary" 
         onClick={() => setShowComparison(true)} 
