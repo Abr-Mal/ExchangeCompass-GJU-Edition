@@ -39,7 +39,7 @@ function App() {
   const [error, setError] = useState(null);
   
   // Selected university (single) for detail view
-  const [selectedUni, setSelectedUni] = useState(null);
+  const [selectedUniDetails, setSelectedUniDetails] = useState(null);
   const [highlightedUni, setHighlightedUni] = useState(null);
   const [reviewsContent, setReviewsContent] = useState(null);
   const [reviewsRaw, setReviewsRaw] = useState([]);
@@ -47,9 +47,14 @@ function App() {
   const [showAIReview, setShowAIReview] = useState(false);
   const [loadingAISummary, setLoadingAISummary] = useState(false);
 
+  // New state for comparison feature
+  const [compareUni1, setCompareUni1] = useState(null);
+  const [compareUni2, setCompareUni2] = useState(null);
+  const [showComparison, setShowComparison] = useState(false); // Controls whether to show comparison view
+
   // When a marker is clicked, show its details in the right pane
   const handleMarkerClick = (uniData) => {
-    setSelectedUni(uniData);
+    setSelectedUniDetails(uniData);
     setHighlightedUni(uniData.uni_name);
     fetchReviews(uniData.uni_name);
   };
@@ -100,7 +105,7 @@ function App() {
         const overallParts = [avgCost, avgAcad, avgSocial, avgAcc].filter(v => v !== null);
         const overall = overallParts.length ? +(overallParts.reduce((x, y) => x + y, 0) / overallParts.length).toFixed(2) : null;
   
-        setSelectedUni(prev => ({
+        setSelectedUniDetails(prev => ({
           ...(prev || {}),
           avg_cost: avgCost,
           avg_academics: avgAcad,
@@ -123,7 +128,7 @@ function App() {
           return null;
         };
   
-        setSelectedUni(prev => ({
+        setSelectedUniDetails(prev => ({
           ...(prev || {}),
           avg_cost: read(data, ['avg_cost', 'cost_score', 'costScore', 'cost']) ?? prev?.avg_cost,
           avg_academics: read(data, ['avg_academics', 'academic_score', 'academics_score', 'academics']) ?? prev?.avg_academics,
@@ -146,6 +151,19 @@ function App() {
     }
   };
   
+  const handleSelectForComparison = (uniData) => {
+    if (!compareUni1) {
+      setCompareUni1(uniData);
+    } else if (!compareUni2 && uniData.uni_name !== compareUni1.uni_name) {
+      setCompareUni2(uniData);
+    } else if (uniData.uni_name === compareUni1.uni_name) {
+      // Optionally, allow user to deselect the first university if clicked again
+      setCompareUni1(null);
+    } else if (uniData.uni_name === compareUni2.uni_name) {
+      // Optionally, allow user to deselect the second university if clicked again
+      setCompareUni2(null);
+    }
+  };
 
   // (filters and list removed; reviews handled via fetchReviews)
 
@@ -249,121 +267,194 @@ function App() {
       <p className="lead text-muted">Data-Driven Insights for Your German Exchange</p>
     </header>
 
-    {/* --- MAP AND DATA SPLIT VIEW --- */}
-    <div className="split-screen">
-      {/* LEFT: Detail pane (fixed half) */}
-      <div className="left-pane">
-        <div className="p-3 d-flex flex-column" style={{height: '100%'}}>
-          {!selectedUni ? (
-            <div className="d-flex align-items-center justify-content-center h-100 text-muted">
-              <div style={{textAlign: 'center'}}>
-                <h5>Select a university from the map</h5>
-                <p className="small">Click any marker on the right to view full details and AI review here.</p>
+    {/* Comparison Controls (visible above the split view) */}
+    <div className="d-flex justify-content-center mb-3">
+      <Button 
+        variant="primary" 
+        onClick={() => setShowComparison(true)} 
+        disabled={!compareUni1 || !compareUni2} // Enable only when both are selected
+        className="me-2"
+      >
+        Compare Selected Universities ({[compareUni1, compareUni2].filter(Boolean).length}/2)
+      </Button>
+      <Button 
+        variant="secondary" 
+        onClick={() => { setCompareUni1(null); setCompareUni2(null); setShowComparison(false); }}
+        disabled={!compareUni1 && !compareUni2} // Enable if any uni is selected for comparison
+      >
+        Clear Comparison
+      </Button>
+    </div>
+
+    {showComparison ? (
+      <div className="comparison-view-full-width container-fluid">
+        {/* Back to Map button */}
+        <div className="text-center mb-3">
+          <Button variant="outline-secondary" onClick={() => setShowComparison(false)}>
+            Back to Map
+          </Button>
+        </div>
+        <div className="row">
+          {/* University 1 Column */}
+          <div className="col-md-6">
+            <div className="card h-100">
+              <div className="card-body">
+                <h3 className="card-title">{compareUni1?.uni_name || 'Select University 1'}</h3>
+                <p className="card-subtitle mb-2 text-muted">{compareUni1?.city}</p>
+                <RadarChartComponent uniData={compareUni1} />
+                {/* Add other details for Uni 1 as needed */}
+                <div className="mb-3">
+                  <span className="badge bg-primary me-2">Academics: {readScore(compareUni1, ['avg_academics','academic_score','academics_score','academics']) ?? '—'}</span>
+                  <span className="badge bg-success me-2">Cost: {readScore(compareUni1, ['avg_cost','cost_score','costScore','cost']) ?? '—'}</span>
+                  <span className="badge bg-warning text-dark me-2">Social: {readScore(compareUni1, ['avg_social','social_score','student_life','social']) ?? '—'}</span>
+                  <span className="badge bg-info text-dark">Accommodation: {readScore(compareUni1, ['avg_accommodation','accommodation_score','housing','accommodation']) ?? '—'}</span>
+                </div>
+                 <h6>AI Summary</h6>
+                <p className="small">{compareUni1?.theme_summary || 'No AI summary available.'}</p>
               </div>
             </div>
-          ) : (
-            <div className="card h-100 overflow-auto">
+          </div>
+
+          {/* University 2 Column */}
+          <div className="col-md-6">
+            <div className="card h-100">
               <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start mb-3">
-                  <div>
-                    <h3 className="mb-1">{selectedUni.uni_name}</h3>
-                    <div className="text-muted small">{selectedUni.city}</div>
-                  </div>
-                </div>
-
-                {/* Star rating + numeric */}
-                <div className="mb-3 d-flex align-items-center gap-2">
-                  <div>
-                    {(() => {
-                      const raw = Number(selectedUni?.overall_score) || 0;
-                      const rounded = Math.round(raw); // 0..5
-                      return Array.from({ length: 5 }).map((_, i) => (
-                        <span key={i} className="star">{i < rounded ? '★' : '☆'}</span>
-                      ));
-                    })()}
-                  </div>
-                  <div className="small text-muted">{selectedUni?.overall_score?.toFixed ? selectedUni.overall_score.toFixed(2) : selectedUni?.overall_score} • {selectedUni?.review_count ?? 0} reviews</div>
-                </div>
-
-                {/* Key metric badges */}
+                <h3 className="card-title">{compareUni2?.uni_name || 'Select University 2'}</h3>
+                <p className="card-subtitle mb-2 text-muted">{compareUni2?.city}</p>
+                <RadarChartComponent uniData={compareUni2} />
+                {/* Add other details for Uni 2 as needed */}
                 <div className="mb-3">
-                  <span className="badge bg-primary me-2">Academics: {readScore(selectedUni, ['avg_academics','academic_score','academics_score','academics']) ?? '—'}</span>
-                  <span className="badge bg-success me-2">Cost: {readScore(selectedUni, ['avg_cost','cost_score','costScore','cost']) ?? '—'}</span>
-                  <span className="badge bg-warning text-dark me-2">Social: {readScore(selectedUni, ['avg_social','social_score','student_life','social']) ?? '—'}</span>
-                  <span className="badge bg-info text-dark">Accommodation: {readScore(selectedUni, ['avg_accommodation','accommodation_score','housing','accommodation']) ?? '—'}</span>
+                  <span className="badge bg-primary me-2">Academics: {readScore(compareUni2, ['avg_academics','academic_score','academics_score','academics']) ?? '—'}</span>
+                  <span className="badge bg-success me-2">Cost: {readScore(compareUni2, ['avg_cost','cost_score','costScore','cost']) ?? '—'}</span>
+                  <span className="badge bg-warning text-dark me-2">Social: {readScore(compareUni2, ['avg_social','social_score','student_life','social']) ?? '—'}</span>
+                  <span className="badge bg-info text-dark">Accommodation: {readScore(compareUni2, ['avg_accommodation','accommodation_score','housing','accommodation']) ?? '—'}</span>
                 </div>
-
-                {/* Radar Chart */}
-                <div className="mb-3">
-                  <RadarChartComponent uniData={selectedUni} />
+                <h6>AI Summary</h6>
+                <p className="small">{compareUni2?.theme_summary || 'No AI summary available.'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="split-screen">
+        {/* LEFT: Detail pane (fixed half) */}
+        <div className="left-pane">
+          <div className="p-3 d-flex flex-column" style={{height: '100%'}}>
+            {!selectedUniDetails ? (
+              <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                <div style={{textAlign: 'center'}}>
+                  <h5>Select a university from the map</h5>
+                  <p className="small">Click any marker on the right to view full details and AI review here.</p>
                 </div>
+              </div>
+            ) : (
+              <div className="card h-100 overflow-auto">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                      <h3 className="mb-1">{selectedUniDetails.uni_name}</h3>
+                      <div className="text-muted small">{selectedUniDetails.city}</div>
+                    </div>
+                  </div>
 
-                {/* AI review toggle */}
-                <div className="mb-2">
-                  <Button variant="link" onClick={() => setShowAIReview(s => !s)}>{showAIReview ? 'Hide AI review' : 'Show AI review'}</Button>
-                </div>
+                  {/* Star rating + numeric */}
+                  <div className="mb-3 d-flex align-items-center gap-2">
+                    <div>
+                      {(() => {
+                        const raw = Number(selectedUniDetails?.overall_score) || 0;
+                        const rounded = Math.round(raw); // 0..5
+                        return Array.from({ length: 5 }).map((_, i) => (
+                          <span key={i} className="star">{i < rounded ? '★' : '☆'}</span>
+                        ));
+                      })()}
+                    </div>
+                    <div className="small text-muted">{selectedUniDetails?.overall_score?.toFixed ? selectedUniDetails.overall_score.toFixed(2) : selectedUniDetails?.overall_score} • {selectedUniDetails?.review_count ?? 0} reviews</div>
+                  </div>
 
-                {showAIReview && (
-                  <div className="ai-review mb-3" style={{ minHeight: '100px' }}> {/* Added minHeight to prevent twitching */}
-                    {loadingAISummary ? (
-                      <div className="d-flex align-items-center justify-content-center h-100 text-muted">
-                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
-                          <span className="visually-hidden">Loading AI summary...</span>
+                  {/* Key metric badges */}
+                  <div className="mb-3">
+                    <span className="badge bg-primary me-2">Academics: {readScore(selectedUniDetails, ['avg_academics','academic_score','academics_score','academics']) ?? '—'}</span>
+                    <span className="badge bg-success me-2">Cost: {readScore(selectedUniDetails, ['avg_cost','cost_score','costScore','cost']) ?? '—'}</span>
+                    <span className="badge bg-warning text-dark me-2">Social: {readScore(selectedUniDetails, ['avg_social','social_score','student_life','social']) ?? '—'}</span>
+                    <span className="badge bg-info text-dark">Accommodation: {readScore(selectedUniDetails, ['avg_accommodation','accommodation_score','housing','accommodation']) ?? '—'}</span>
+                  </div>
+
+                  {/* Radar Chart */}
+                  <div className="mb-3">
+                    <RadarChartComponent uniData={selectedUniDetails} />
+                  </div>
+
+                  {/* AI review toggle */}
+                  <div className="mb-2">
+                    <Button variant="link" onClick={() => setShowAIReview(s => !s)}>{showAIReview ? 'Hide AI review' : 'Show AI review'}</Button>
+                  </div>
+
+                  {showAIReview && (
+                    <div className="ai-review mb-3" style={{ minHeight: '100px' }}> {/* Added minHeight to prevent twitching */}
+                      {loadingAISummary ? (
+                        <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                            <span className="visually-hidden">Loading AI summary...</span>
+                          </div>
+                          <div className="small text-muted">Generating AI summary...</div>
                         </div>
-                        <div className="small text-muted">Generating AI summary...</div>
+                      ) : reviewsContent ? (
+                        <div className="small">{reviewsContent}</div>
+                      ) : (
+                        <div className="small text-muted">No AI summary available for this university.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Student reviews list */}
+                  <div className="reviews-section mt-3">
+                    <h6>Student reviews</h6>
+                    {reviewsRaw && reviewsRaw.length > 0 ? (
+                      <div className="reviews-list">
+                        {reviewsRaw.slice(0, reviewsVisibleCount).map((r, idx) => (
+                          <div className="review-item" key={idx}>
+                            <div className="review-meta small text-muted">{r.author || r.student || 'Student'} • {r.created_at || r.date || ''}</div>
+                            <div className="review-body">{r.raw_review_text || r.raw_review || r.review_text || r.comment || r.summary || r.theme_summary || 'No text provided'}</div>
+                          </div>
+                        ))}
                       </div>
-                    ) : reviewsContent ? (
-                      <div className="small">{reviewsContent}</div>
                     ) : (
-                      <div className="small text-muted">No AI summary available for this university.</div>
+                      <div className="small text-muted">No student reviews available.</div>
+                    )}
+                    {reviewsRaw && reviewsRaw.length > reviewsVisibleCount && (
+                      <div className="mt-2 text-center">
+                        <Button variant="outline-primary" size="sm" onClick={() => setReviewsVisibleCount(c => c + 5)}>Load more</Button>
+                      </div>
                     )}
                   </div>
-                )}
 
-                {/* Student reviews list */}
-                <div className="reviews-section mt-3">
-                  <h6>Student reviews</h6>
-                  {reviewsRaw && reviewsRaw.length > 0 ? (
-                    <div className="reviews-list">
-                      {reviewsRaw.slice(0, reviewsVisibleCount).map((r, idx) => (
-                        <div className="review-item" key={idx}>
-                          <div className="review-meta small text-muted">{r.author || r.student || 'Student'} • {r.created_at || r.date || ''}</div>
-                          <div className="review-body">{r.raw_review_text || r.raw_review || r.review_text || r.comment || r.summary || r.theme_summary || 'No text provided'}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="small text-muted">No student reviews available.</div>
-                  )}
-                  {reviewsRaw && reviewsRaw.length > reviewsVisibleCount && (
-                    <div className="mt-2 text-center">
-                      <Button variant="outline-primary" size="sm" onClick={() => setReviewsVisibleCount(c => c + 5)}>Load more</Button>
-                    </div>
-                  )}
                 </div>
-
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* RIGHT: MAP */}
-      <div className="right-pane">
-        <div className="card h-100 shadow-lg">
-          <div className="card-header bg-dark text-white">
-            Geospatial View (Cost of Living Heatmap)
-          </div>
-          <div className="card-body p-0 d-flex flex-column" style={{minHeight: 0}}>
-            <MapComponent 
-              unis={mergedUnis} 
-              coords={CITY_COORDINATES} 
-              handleMarkerClick={handleMarkerClick}
-            />
+        {/* RIGHT: MAP */}
+        <div className="right-pane">
+          <div className="card h-100 shadow-lg">
+            <div className="card-header bg-dark text-white">
+              Geospatial View (Cost of Living Heatmap)
+            </div>
+            <div className="card-body p-0 d-flex flex-column" style={{minHeight: 0}}>
+              <MapComponent 
+                unis={mergedUnis} 
+                coords={CITY_COORDINATES} 
+                handleMarkerClick={handleMarkerClick}
+                handleSelectForComparison={handleSelectForComparison}
+                compareUni1={compareUni1}
+                compareUni2={compareUni2}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    )}
 
   </div>
   );

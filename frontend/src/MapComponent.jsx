@@ -80,8 +80,11 @@ const getColorByCost = (score) => {
  * @param {Array<Object>} props.unis - An array of university data objects.
  * @param {Object} props.coords - An object mapping city names to their [latitude, longitude] coordinates.
  * @param {Function} props.handleMarkerClick - Callback function executed when a map marker is clicked.
+ * @param {Function} props.handleSelectForComparison - New callback to select university for comparison.
+ * @param {Object | null} props.compareUni1 - The first university selected for comparison.
+ * @param {Object | null} props.compareUni2 - The second university selected for comparison.
  */
-const MapComponent = ({ unis, coords, handleMarkerClick }) => {
+const MapComponent = ({ unis, coords, handleMarkerClick, handleSelectForComparison, compareUni1, compareUni2 }) => {
     // Set a central point of Germany to initially center the map view.
     const center = [51.1657, 10.4515]; 
 
@@ -136,6 +139,35 @@ const MapComponent = ({ unis, coords, handleMarkerClick }) => {
                             ) : (
                                 <span>No reviews yet</span>
                             )}
+                            <div className="mt-2">
+                                <button className="btn btn-sm btn-outline-info me-1" onClick={() => handleMarkerClick(uni)}>
+                                    View Details
+                                </button>
+                                {(!compareUni1 || (compareUni1 && compareUni1.uni_name !== uni.uni_name && !compareUni2)) && (
+                                    <button 
+                                        className="btn btn-sm btn-outline-primary" 
+                                        onClick={() => handleSelectForComparison(uni)}
+                                    >
+                                        {compareUni1 ? 'Select for Comparison (2/2)' : 'Select for Comparison (1/2)'}
+                                    </button>
+                                )}
+                                {(compareUni1 && compareUni1.uni_name === uni.uni_name) && (
+                                    <button 
+                                        className="btn btn-sm btn-outline-warning" 
+                                        onClick={() => handleSelectForComparison(uni)}
+                                    >
+                                        Deselect Uni 1
+                                    </button>
+                                )}
+                                {(compareUni2 && compareUni2.uni_name === uni.uni_name) && (
+                                    <button 
+                                        className="btn btn-sm btn-outline-warning" 
+                                        onClick={() => handleSelectForComparison(uni)}
+                                    >
+                                        Deselect Uni 2
+                                    </button>
+                                )}
+                            </div>
                         </Popup>
                     </Marker>
                 );
