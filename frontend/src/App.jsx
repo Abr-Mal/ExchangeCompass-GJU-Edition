@@ -339,7 +339,7 @@ function App() {
                         ));
                       })()}
                     </div>
-                    <div className="small text-muted">{selectedUniDetails?.overall_score?.toFixed ? selectedUniDetails.overall_score.toFixed(2) : selectedUniDetails?.overall_score} • {selectedUniDetails?.review_count ?? 0} reviews</div>
+                    <div className="small text-muted">{selectedUniDetails?.overall_score?.toFixed(2) ?? selectedUniDetails?.overall_score} • {selectedUniDetails?.review_count ?? 0} reviews</div>
                   </div>
 
                   {/* Key metric badges */}

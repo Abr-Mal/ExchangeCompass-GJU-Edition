@@ -133,9 +133,8 @@ const MapComponent = ({ unis, coords, handleMarkerClick, handleSelectForComparis
                             {/* Display average scores if reviews exist, otherwise indicate no reviews. */}
                             {uni.review_count ? (
                                 <>
-                                    Avg. Cost: {costVal ?? '—'}/5<br/>
-                                    Avg. Academics: {academicsVal ?? '—'}/5
-                                </>
+                                    {/* Removed Avg. Cost and Avg. Academics as per user feedback */}
+                                </> 
                             ) : (
                                 <span>No reviews yet</span>
                             )}
