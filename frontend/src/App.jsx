@@ -119,6 +119,7 @@ function App() {
         setReviewsVisibleCount(5);
   
         await fetchAISummary(uniName);
+        return { avgCost, avgAcad, avgSocial, avgAcc, overall, review_count: data.length, theme_summary: null }; // Return aggregated data
       } else if (data && typeof data === 'object') {
         const read = (obj, keys) => {
           if (!obj) return null;
@@ -140,28 +141,53 @@ function App() {
         setReviewsRaw([data]);
         setReviewsVisibleCount(5);
         await fetchAISummary(uniName);
+        return { 
+          avg_cost: read(data, ['avg_cost', 'cost_score', 'costScore', 'cost']) ?? null,
+          avg_academics: read(data, ['avg_academics', 'academic_score', 'academics_score', 'academics']) ?? null,
+          avg_social: read(data, ['avg_social', 'social_score', 'student_life', 'social']) ?? null,
+          avg_accommodation: read(data, ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation']) ?? null,
+          overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? null,
+          review_count: data.review_count ?? 0,
+          theme_summary: null
+        }; // Return aggregated data
       } else if (typeof data === 'string') {
         setReviewsContent(data);
+        return { theme_summary: data }; // Return summary string
       } else {
         setReviewsContent('No AI summary available.');
+        return { theme_summary: 'No AI summary available.' };
       }
     } catch (err) {
       console.error("Error fetching reviews:", err);
       setReviewsContent('Failed to fetch individual reviews from backend. Please try again later.');
+      return { theme_summary: 'Failed to fetch reviews.' };
     }
   };
   
-  const handleSelectForComparison = (uniData) => {
+  const handleSelectForComparison = async (uniData) => {
+    // Fetch full details for the university when it's selected for comparison
+    const fullUniDetails = await fetchReviews(uniData.uni_name);
+
+    if (!fullUniDetails) {
+      console.error("Could not fetch full details for comparison selection.", uniData);
+      return;
+    }
+
+    const uniWithDetails = { ...uniData, ...fullUniDetails };
+
     if (!compareUni1) {
-      setCompareUni1(uniData);
-    } else if (!compareUni2 && uniData.uni_name !== compareUni1.uni_name) {
-      setCompareUni2(uniData);
-    } else if (uniData.uni_name === compareUni1.uni_name) {
-      // Optionally, allow user to deselect the first university if clicked again
+      setCompareUni1(uniWithDetails);
+    } else if (compareUni1 && uniWithDetails.uni_name === compareUni1.uni_name) {
+      // Deselect Uni 1 if clicked again
       setCompareUni1(null);
-    } else if (uniData.uni_name === compareUni2.uni_name) {
-      // Optionally, allow user to deselect the second university if clicked again
+    } else if (!compareUni2) {
+      setCompareUni2(uniWithDetails);
+    } else if (compareUni2 && uniWithDetails.uni_name === compareUni2.uni_name) {
+      // Deselect Uni 2 if clicked again
       setCompareUni2(null);
+    } else {
+      // If both are selected and a new one is clicked, maybe replace one or do nothing
+      console.warn("Both comparison slots are full. Cannot add more for now.");
     }
   };
 
@@ -203,14 +229,18 @@ function App() {
       
       if (r.data && r.data.summary) {
         setReviewsContent(String(r.data.summary));
+        return String(r.data.summary);
       } else if (r.data && r.data.error) {
         setReviewsContent(`AI synthesis error: ${r.data.error}.`);
+        return `AI synthesis error: ${r.data.error}.`;
       } else {
         setReviewsContent('No AI summary available for this university.');
+        return 'No AI summary available.';
       }
     } catch (e) {
       console.error("Error fetching AI summary:", e);
       setReviewsContent('Failed to fetch AI summary from backend. Please ensure the backend is running or try again later.');
+      return 'Failed to fetch AI summary.';
     } finally {
         setLoadingAISummary(false);
     }
@@ -279,7 +309,7 @@ function App() {
       </Button>
       <Button 
         variant="secondary" 
-        onClick={() => { setCompareUni1(null); setCompareUni2(null); setShowComparison(false); }}
+        onClick={() => { setCompareUni1(null); setCompareUni2(null); setShowComparison(false); setReviewsContent(null); }}
         disabled={!compareUni1 && !compareUni2} // Enable if any uni is selected for comparison
       >
         Clear Comparison

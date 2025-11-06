@@ -1,5 +1,6 @@
 :root {
   --app-header-height: 96px;
+  --comparison-controls-height: 60px; /* Approximate height for the comparison buttons section */
 
   /* === GJU Theme Colors === */
   --primary-color: #F59F2E;    /* GJU orange */
@@ -19,7 +20,7 @@ html, body, #root {
 }
 
 body {
-  padding-top: var(--app-header-height);
+  padding-top: calc(var(--app-header-height) + var(--comparison-controls-height));
 }
 
 /* === Fixed Header === */
@@ -54,7 +55,7 @@ body {
 /* === Split Screen Layout === */
 .split-screen {
   position: fixed;
-  top: var(--app-header-height);
+  top: calc(var(--app-header-height) + var(--comparison-controls-height));
   left: 0;
   right: 0;
   bottom: 0;
@@ -63,6 +64,20 @@ body {
   padding: 1rem;
   box-sizing: border-box;
   z-index: 100;
+}
+
+/* New comparison view layout */
+.comparison-view-full-width {
+  position: fixed;
+  top: calc(var(--app-header-height) + var(--comparison-controls-height));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: var(--bg-color); /* Ensure it has a background */
+  z-index: 1000; /* Higher z-index to cover the split-screen content */
 }
 
 /* 50/50 split */
@@ -177,10 +192,15 @@ a:hover {
 
 /* === Responsive Layout === */
 @media (max-width: 992px) {
-  .split-screen {
+  .split-screen,
+  .comparison-view-full-width {
     position: static;
     flex-direction: column;
     height: auto;
+    top: auto; /* Reset top for static positioning */
+  }
+  body {
+    padding-top: var(--app-header-height); /* Only header padding on small screens */
   }
   .left-pane,
   .right-pane {
