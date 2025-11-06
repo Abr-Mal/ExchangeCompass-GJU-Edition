@@ -116,7 +116,22 @@ def get_unis_live():
     cursor = conn.cursor()
     try:
         # Query all records from the table to display all universities.
-        cursor.execute("SELECT * FROM exchange_reviews;")
+        # For the /api/unis endpoint, we'll return an aggregated view by default
+        cursor.execute("""
+            SELECT
+                uni_name,
+                city,
+                COUNT(*) AS review_count,
+                ROUND(AVG(academics_score)::numeric, 2) AS avg_academics,
+                ROUND(AVG(cost_score)::numeric, 2) AS avg_cost,
+                ROUND(AVG(social_score)::numeric, 2) AS avg_social,
+                ROUND(AVG(accommodation_score)::numeric, 2) AS avg_accommodation,
+                AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric AS overall_score
+            FROM
+                exchange_reviews
+            GROUP BY
+                uni_name, city;
+        """)
         records = cursor.fetchall()
 
         # Get column names dynamically for flexible JSON conversion.
@@ -133,6 +148,50 @@ def get_unis_live():
         if cursor: cursor.close()
         if conn: conn.close()
 
+@app.route('/api/university/<uni_name>', methods=['GET'])
+def get_university_details(uni_name):
+    """Fetches aggregated details for a specific university, including AI summary."""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT
+                uni_name,
+                city,
+                COUNT(*) AS review_count,
+                ROUND(AVG(academics_score)::numeric, 2) AS avg_academics,
+                ROUND(AVG(cost_score)::numeric, 2) AS avg_cost,
+                ROUND(AVG(social_score)::numeric, 2) AS avg_social,
+                ROUND(AVG(accommodation_score)::numeric, 2) AS avg_accommodation,
+                ROUND(AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric, 2) AS overall_score,
+                -- Fetching a theme_summary (assuming it's consistent across reviews for a uni, or picking one)
+                (SELECT theme_summary FROM exchange_reviews WHERE uni_name = %s AND theme_summary IS NOT NULL LIMIT 1) AS theme_summary
+            FROM
+                exchange_reviews
+            WHERE
+                uni_name = %s
+            GROUP BY
+                uni_name, city;
+        """, (uni_name, uni_name))
+        
+        record = cursor.fetchone()
+
+        if record:
+            column_names = [desc[0] for desc in cursor.description]
+            university_data = dict(zip(column_names, record))
+            return jsonify(university_data)
+        else:
+            return jsonify({"error": f"University {uni_name} not found or no reviews available."}), 404
+    except Exception as e:
+        print(f"Error fetching aggregated university details for {uni_name}: {e}")
+        return jsonify({"error": "Failed to fetch university details due to an internal error."}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
 @app.route('/api/reviews/<uni_name>', methods=['GET'])
 def get_individual_reviews(uni_name):
     """Fetches all individual reviews for a specific university."""
@@ -144,7 +203,7 @@ def get_individual_reviews(uni_name):
     try:
         # Use a parameterized query to prevent SQL injection and filter reviews by university name.
         cursor.execute(
-            "SELECT id, uni_name, city, source_type, raw_language, overall_sentiment, academics_score, cost_score, social_score, accommodation_score, theme_summary, raw_review_text FROM exchange_reviews WHERE uni_name = %s;",
+            "SELECT id, uni_name, raw_review_text FROM exchange_reviews WHERE uni_name = %s;",
             (uni_name,)
         )
         records = cursor.fetchall()

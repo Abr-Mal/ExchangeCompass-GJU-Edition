@@ -56,125 +56,57 @@ function App() {
   const handleMarkerClick = (uniData) => {
     setSelectedUniDetails(uniData);
     setHighlightedUni(uniData.uni_name);
-    fetchReviews(uniData.uni_name);
+    fetchAggregatedUniversityDetails(uniData.uni_name);
   };
 
   const fetchReviews = async (uniName) => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
-    // Removed setReviewsContent('Loading...') here, as AI summary loading is handled by loadingAISummary
-  
     try {
       const res = await axios.get(`${BACKEND_URL}/api/reviews/${encodeURIComponent(uniName)}`);
-      const data = res.data;
-  
-      const read = (obj, keys) => {
-        if (!obj) return null;
-        for (const k of keys) {
-          if (obj[k] !== undefined && obj[k] !== null) return obj[k];
-        }
-        return null;
-      };
-  
-      const asNumber = (v) => {
-        if (v === null || v === undefined) return null;
-        const n = Number(v);
-        return Number.isFinite(n) ? n : null;
-      };
-  
-      let aiSummary = await fetchAISummary(uniName); // Fetch AI summary here
-  
-      if (Array.isArray(data) && data.length > 0) {
-        const keysCost = ['avg_cost', 'cost_score', 'costScore', 'cost'];
-        const keysAcad = ['avg_academics', 'academic_score', 'academics_score', 'academics'];
-        const keysSocial = ['avg_social', 'social_score', 'student_life', 'social'];
-        const keysAcc = ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation'];
-  
-        const sums = { cost: 0, acad: 0, social: 0, acc: 0 };
-        const counts = { cost: 0, acad: 0, social: 0, acc: 0 };
-  
-        data.forEach((r) => {
-          const c = asNumber(read(r, keysCost)); if (c !== null) { sums.cost += c; counts.cost += 1; }
-          const a = asNumber(read(r, keysAcad)); if (a !== null) { sums.acad += a; counts.acad += 1; }
-          const s = asNumber(read(r, keysSocial)); if (s !== null) { sums.social += s; counts.social += 1; }
-          const ac = asNumber(read(r, keysAcc)); if (ac !== null) { sums.acc += ac; counts.acc += 1; }
-        });
-  
-        const avgCost = counts.cost ? +(sums.cost / counts.cost).toFixed(2) : null;
-        const avgAcad = counts.acad ? +(sums.acad / counts.acad).toFixed(2) : null;
-        const avgSocial = counts.social ? +(sums.social / counts.social).toFixed(2) : null;
-        const avgAcc = counts.acc ? +(sums.acc / counts.acc).toFixed(2) : null;
-  
-        const overallParts = [avgCost, avgAcad, avgSocial, avgAcc].filter(v => v !== null);
-        const overall = overallParts.length ? +(overallParts.reduce((x, y) => x + y, 0) / overallParts.length).toFixed(2) : null;
-  
-        setSelectedUniDetails(prev => ({
-          ...(prev || {}),
-          avg_cost: avgCost,
-          avg_academics: avgAcad,
-          avg_social: avgSocial,
-          avg_accommodation: avgAcc,
-          overall_score: overall,
-          review_count: data.length,
-          theme_summary: aiSummary // Store the fetched AI summary here
-        }));
-  
-        setReviewsRaw(data);
-        setReviewsVisibleCount(5);
-        setReviewsContent(aiSummary); // Set reviewsContent for single view
-  
-        return { uni_name: uniName, city: data[0]?.city, avg_cost: avgCost, avg_academics: avgAcad, avg_social: avgSocial, avg_accommodation: avgAcc, overall_score: overall, review_count: data.length, theme_summary: aiSummary };
-      } else if (data && typeof data === 'object') {
-        const read = (obj, keys) => {
-          if (!obj) return null;
-          for (const k of keys) {
-            if (obj[k] !== undefined && obj[k] !== null) return obj[k];
-          }
-          return null;
-        };
-  
-        setSelectedUniDetails(prev => ({
-          ...(prev || {}),
-          avg_cost: read(data, ['avg_cost', 'cost_score', 'costScore', 'cost']) ?? prev?.avg_cost,
-          avg_academics: read(data, ['avg_academics', 'academic_score', 'academics_score', 'academics']) ?? prev?.avg_academics,
-          avg_social: read(data, ['avg_social', 'social_score', 'student_life', 'social']) ?? prev?.avg_social,
-          avg_accommodation: read(data, ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation']) ?? prev?.avg_accommodation,
-          overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? prev?.overall_score,
-          review_count: data.review_count ?? prev?.review_count,
-          theme_summary: aiSummary // Store the fetched AI summary here
-        }));
-        setReviewsRaw([data]);
-        setReviewsVisibleCount(5);
-        setReviewsContent(aiSummary); // Set reviewsContent for single view
-  
-        return {
-          uni_name: uniName, city: data?.city, 
-          avg_cost: read(data, ['avg_cost', 'cost_score', 'costScore', 'cost']) ?? null,
-          avg_academics: read(data, ['avg_academics', 'academic_score', 'academics_score', 'academics']) ?? null,
-          avg_social: read(data, ['avg_social', 'social_score', 'student_life', 'social']) ?? null,
-          avg_accommodation: read(data, ['avg_accommodation', 'accommodation_score', 'housing', 'accommodation']) ?? null,
-          overall_score: read(data, ['overall_score', 'avg_overall', 'score', 'rating']) ?? null,
-          review_count: data.review_count ?? 0,
-          theme_summary: aiSummary
-        };
-      } else if (typeof data === 'string') {
-        setReviewsContent(data);
-        return { uni_name: uniName, city: null, theme_summary: data };
-      } else {
-        setReviewsContent('No AI summary available.');
-        return { uni_name: uniName, city: null, theme_summary: 'No AI summary available.' };
-      }
+      return res.data; // This endpoint now only returns raw reviews
     } catch (err) {
-      console.error("Error fetching reviews:", err);
-      setReviewsContent('Failed to fetch individual reviews from backend. Please try again later.');
-      return { uni_name: uniName, city: null, theme_summary: 'Failed to fetch reviews.' };
-    } finally {
-        // setLoadingAISummary(false); // fetchAISummary now handles its own loading state
+      console.error("Error fetching raw reviews:", err);
+      return [];
     }
   };
+
+  const fetchAggregatedUniversityDetails = async (uniName) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
+    setLoadingAISummary(true); // Re-using this for overall data loading indication
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/university/${encodeURIComponent(uniName)}`);
+      const data = res.data; // This will be a single aggregated university object
   
+      if (data && !data.error) {
+        // Update selectedUniDetails state with the aggregated data
+        setSelectedUniDetails(data);
+        setReviewsContent(data.theme_summary || 'No AI summary available.');
+        // Fetch individual raw reviews separately for the list
+        const rawReviews = await fetchReviews(uniName); 
+        setReviewsRaw(rawReviews);
+        setReviewsVisibleCount(5); // Reset visible count on new selection
+        return data; // Return the full aggregated data
+      } else {
+        setReviewsContent(data?.error || `No details found for ${uniName}.`);
+        setSelectedUniDetails(null); // Clear details if not found
+        setReviewsRaw([]);
+        return null; 
+      }
+    } catch (err) {
+      console.error("Error fetching aggregated university details:", err);
+      setError("Failed to fetch university details. Please check server or try again.");
+      setSelectedUniDetails(null);
+      setReviewsRaw([]);
+      setReviewsContent('Failed to load details.');
+      return null;
+    } finally {
+      setLoadingAISummary(false);
+    }
+  };
+
   const handleSelectForComparison = async (uniData) => {
     // Fetch full details for the university when it's selected for comparison
-    const fullUniDetails = await fetchReviews(uniData.uni_name);
+    const fullUniDetails = await fetchAggregatedUniversityDetails(uniData.uni_name);
 
     if (!fullUniDetails) {
       console.error("Could not fetch full details for comparison selection.", uniData);
@@ -203,9 +135,7 @@ function App() {
     }
   };
 
-  // (filters and list removed; reviews handled via fetchReviews)
-
-  // Fetching Aggregated Data
+  // Initial Data Fetching (All Unis for Map)
   useEffect(() => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
   
@@ -231,30 +161,25 @@ function App() {
     return null;
   };
 
-  // Call the backend synthesis endpoint to get a single AI summary for the university
+  // The fetchAISummary is now just a helper to get the raw summary text
   const fetchAISummary = async (uniName) => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
-    setLoadingAISummary(true);
+    // setLoadingAISummary(true); // Removed as main fetch will handle it
   
     try {
       const r = await axios.get(`${BACKEND_URL}/api/summary/${encodeURIComponent(uniName)}`);
-      
       if (r.data && r.data.summary) {
-        // Removed direct setReviewsContent here, as fetchReviews will handle it
         return String(r.data.summary);
       } else if (r.data && r.data.error) {
-        // Removed direct setReviewsContent here
-        return `AI synthesis error: ${r.data.error}.`;
+        return `AI summary error: ${r.data.error}.`;
       } else {
-        // Removed direct setReviewsContent here
         return 'No AI summary available.';
       }
     } catch (e) {
       console.error("Error fetching AI summary:", e);
-      // Removed direct setReviewsContent here
       return 'Failed to fetch AI summary.';
     } finally {
-        setLoadingAISummary(false);
+      // setLoadingAISummary(false); // Removed as main fetch will handle it
     }
   };
   
