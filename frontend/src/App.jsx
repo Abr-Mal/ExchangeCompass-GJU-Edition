@@ -76,6 +76,7 @@ function App() {
     try {
       const res = await axios.get(`${BACKEND_URL}/api/university/${encodeURIComponent(uniName)}`);
       const data = res.data; // This will be a single aggregated university object
+      console.log("Fetched aggregated university details:", data); // DEBUG LOG
   
       if (data && !data.error) {
         // Update selectedUniDetails state with the aggregated data

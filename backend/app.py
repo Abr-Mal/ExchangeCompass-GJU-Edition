@@ -178,10 +178,12 @@ def get_university_details(uni_name):
         """, (uni_name, uni_name))
         
         record = cursor.fetchone()
+        print(f"Raw record from DB for {uni_name}: {record}") # DEBUG LOG
 
         if record:
             column_names = [desc[0] for desc in cursor.description]
             university_data = dict(zip(column_names, record))
+            print(f"Aggregated university data returned: {university_data}") # DEBUG LOG
             return jsonify(university_data)
         else:
             return jsonify({"error": f"University {uni_name} not found or no reviews available."}), 404
