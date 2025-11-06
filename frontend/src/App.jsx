@@ -3,6 +3,7 @@ import axios from 'axios';
 import MapComponent from './MapComponent';
 import './App.css';
 import { Button } from 'react-bootstrap';
+import RadarChartComponent from './RadarChartComponent';
 
 const CITY_COORDINATES = {
     "Aalen": [48.84, 10.10],
@@ -290,6 +291,11 @@ function App() {
                   <span className="badge bg-success me-2">Cost: {readScore(selectedUni, ['avg_cost','cost_score','costScore','cost']) ?? '—'}</span>
                   <span className="badge bg-warning text-dark me-2">Social: {readScore(selectedUni, ['avg_social','social_score','student_life','social']) ?? '—'}</span>
                   <span className="badge bg-info text-dark">Accommodation: {readScore(selectedUni, ['avg_accommodation','accommodation_score','housing','accommodation']) ?? '—'}</span>
+                </div>
+
+                {/* Radar Chart */}
+                <div className="mb-3">
+                  <RadarChartComponent uniData={selectedUni} />
                 </div>
 
                 {/* AI review toggle */}
