@@ -58,32 +58,30 @@ def get_raw_reviews_text(uni_name):
 
 @app.route('/api/summary/<uni_name>', methods=['GET'])
 def get_ai_summary(uni_name):
-    """Generates a comprehensive summary review using Gemini based on all raw reviews."""
-    
-    # 1. Retrieve all raw reviews for the given university.
-    raw_reviews_list = get_raw_reviews_text(uni_name)
-    if not raw_reviews_list:
-        return jsonify({"summary": f"No reviews found for {uni_name}."}), 200
+    """Fetches the comprehensive summary review from the database."""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
 
-    # Combine reviews into a single string to provide sufficient context for the LLM.
-    all_reviews_text = "\n---\n".join(raw_reviews_list)
-    
-    # 2. Dynamically import the AI analysis function to avoid circular dependencies
-    # if ai_processor.py also imports app.py components.
-    from ai_processor import analyze_review_with_gemini
-    
+    cursor = conn.cursor()
     try:
-        # Call the dedicated AI analysis function from ai_processor.py.
-        gemini_result = analyze_review_with_gemini(all_reviews_text, uni_name)
+        # Attempt to fetch the pre-generated theme_summary from the database
+        cursor.execute(
+            "SELECT theme_summary FROM exchange_reviews WHERE uni_name = %s LIMIT 1;",
+            (uni_name,)
+        )
+        result = cursor.fetchone()
 
-        if gemini_result and gemini_result.get("theme_summary"):
-            return jsonify({"summary": gemini_result["theme_summary"]}), 200
+        if result and result[0]:
+            return jsonify({"summary": result[0]}), 200
         else:
-            return jsonify({"error": "AI summary could not be generated or was empty."}), 500
+            return jsonify({"summary": f"No AI summary found for {uni_name}. Please run ai_processor.py to generate summaries."}), 200
     except Exception as e:
-        # Log the detailed error on the server side, but return a generic error to the client.
-        print(f"Synthesis failed for {uni_name}: {e}")
-        return jsonify({"error": "Failed to generate AI summary due to an internal error."}), 500
+        print(f"Error fetching AI summary from database for {uni_name}: {e}")
+        return jsonify({"error": "Failed to fetch AI summary from database due to an internal error."}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 # --- 5. Flask Routes ---
 
@@ -146,7 +144,7 @@ def get_individual_reviews(uni_name):
     try:
         # Use a parameterized query to prevent SQL injection and filter reviews by university name.
         cursor.execute(
-            "SELECT * FROM exchange_reviews WHERE uni_name = %s;",
+            "SELECT id, uni_name, city, source_type, raw_language, overall_sentiment, academics_score, cost_score, social_score, accommodation_score, theme_summary, raw_review_text FROM exchange_reviews WHERE uni_name = %s;",
             (uni_name,)
         )
         records = cursor.fetchall()
