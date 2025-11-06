@@ -310,26 +310,28 @@ function App() {
     </header>
 
     {/* Comparison Controls (visible above the split view) */}
-    <div className="comparison-bar d-flex justify-content-center mb-3">
-      <Button 
-        variant="primary" 
-        onClick={() => setShowComparison(true)} 
-        disabled={!compareUni1 || !compareUni2} // Enable only when both are selected
-        className="me-2"
-      >
-        Compare Selected Universities ({[compareUni1, compareUni2].filter(Boolean).length}/2)
-      </Button>
-      <Button 
-        variant="secondary" 
-        onClick={() => { setCompareUni1(null); setCompareUni2(null); setShowComparison(false); setReviewsContent(null); }}
-        disabled={!compareUni1 && !compareUni2} // Enable if any uni is selected for comparison
-      >
-        Clear Comparison
-      </Button>
-    </div>
+    {(compareUni1 || compareUni2) && (
+      <div className="comparison-bar d-flex justify-content-center mb-3">
+        <Button 
+          variant="primary" 
+          onClick={() => setShowComparison(true)} 
+          disabled={!compareUni1 || !compareUni2} // Enable only when both are selected
+          className="me-2"
+        >
+          Compare Selected Universities ({[compareUni1, compareUni2].filter(Boolean).length}/2)
+        </Button>
+        <Button 
+          variant="secondary" 
+          onClick={() => { setCompareUni1(null); setCompareUni2(null); setShowComparison(false); setReviewsContent(null); }}
+          disabled={!compareUni1 && !compareUni2} // Enable if any uni is selected for comparison
+        >
+          Clear Comparison
+        </Button>
+      </div>
+    )}
 
     {showComparison ? (
-      <div className="comparison-view-full-width container-fluid">
+      <div className="comparison-view-full-width container-fluid" style={{ top: `calc(var(--app-header-height) + var(--comparison-controls-height))` }}>
         {/* Back to Map button */}
         <div className="text-center mb-3">
           <Button variant="outline-secondary" onClick={() => setShowComparison(false)}>
@@ -379,7 +381,7 @@ function App() {
         </div>
       </div>
     ) : (
-      <div className="split-screen">
+      <div className="split-screen" style={{ top: `calc(var(--app-header-height) ${compareUni1 || compareUni2 ? '+ var(--comparison-controls-height)' : ''})` }}>
         {/* LEFT: Detail pane (fixed half) */}
         <div className="left-pane">
           <div className="p-3 d-flex flex-column" style={{height: '100%'}}>

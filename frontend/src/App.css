@@ -20,7 +20,7 @@ html, body, #root {
 }
 
 body {
-  padding-top: calc(var(--app-header-height) + var(--comparison-controls-height));
+  padding-top: var(--app-header-height);
 }
 
 /* === Fixed Header === */
@@ -55,7 +55,7 @@ body {
 /* === Split Screen Layout === */
 .split-screen {
   position: fixed;
-  top: calc(var(--app-header-height) + var(--comparison-controls-height));
+  /* top will be controlled by inline style */
   left: 0;
   right: 0;
   bottom: 0;
@@ -69,7 +69,7 @@ body {
 /* New comparison view layout */
 .comparison-view-full-width {
   position: fixed;
-  top: calc(var(--app-header-height) + var(--comparison-controls-height));
+  /* top will be controlled by inline style */
   left: 0;
   right: 0;
   bottom: 0;
