@@ -82,12 +82,16 @@ body {
 
 /* Comparison bar styling */
 .comparison-bar {
-  position: relative; /* Create a new stacking context */
-  z-index: 1010; /* Ensure it's above everything else except possibly modals/tooltips */
+  position: fixed; /* Changed to fixed to control its position reliably */
+  top: var(--app-header-height);
+  left: 0;
+  width: 100%; /* Ensure it spans full width */
+  z-index: 1050; /* Higher than map and split-screen, same as app-header */
   height: var(--comparison-controls-height);
   background: var(--bg-color); /* Match body background */
   display: flex;
   align-items: center; /* Vertically center buttons */
+  justify-content: center; /* Horizontally center buttons */
   padding: 0 1rem; /* Add horizontal padding */
   box-shadow: 0 1px 4px rgba(0,0,0,0.05); /* Subtle shadow below the bar */
 }
