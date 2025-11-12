@@ -37,7 +37,7 @@ The application provides the following actionable features:
 | **Database** | **PostgreSQL** | Relational database used for storing structured cost data and the processed, enriched sentiment scores. |
 | **Frontend/UI** | **React** | Used for building a component-based, responsive, and interactive user interface. |
 | **Visualization** | **Chart.js** | Used to generate dynamic Comparative Bar Charts and Radar Diagrams for visual insights. |
-| **Deployment** | **Vercel/Netlify** (Frontend) & **Cloud Run/Heroku** (Backend) | Planned for a professional, scalable live deployment. |
+| **Deployment** | **Vercel** (Frontend) & **Render** (Backend) | Planned for a professional, scalable live deployment. |
 
 ---
 
