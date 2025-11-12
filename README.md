@@ -160,6 +160,6 @@ Follow these steps to get the ExchangeCompass application up and running on your
 
 **Current Phase:** Week 1 - Foundation and Setup
 
-**Live Demo URL:** (To be added upon final deployment in Phase 5)
+**Live Demo URL:** https://exchange-compass-gju-edition.vercel.app
 
 **Creator:** [Abrahim Abu Malouh / https://github.com/Abr-Mal]

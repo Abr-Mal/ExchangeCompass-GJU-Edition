@@ -58,32 +58,30 @@ def get_raw_reviews_text(uni_name):
 
 @app.route('/api/summary/<uni_name>', methods=['GET'])
 def get_ai_summary(uni_name):
-    """Generates a comprehensive summary review using Gemini based on all raw reviews."""
-    
-    # 1. Retrieve all raw reviews for the given university.
-    raw_reviews_list = get_raw_reviews_text(uni_name)
-    if not raw_reviews_list:
-        return jsonify({"summary": f"No reviews found for {uni_name}."}), 200
+    """Fetches the comprehensive summary review from the database."""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
 
-    # Combine reviews into a single string to provide sufficient context for the LLM.
-    all_reviews_text = "\n---\n".join(raw_reviews_list)
-    
-    # 2. Dynamically import the AI analysis function to avoid circular dependencies
-    # if ai_processor.py also imports app.py components.
-    from ai_processor import analyze_review_with_gemini
-    
+    cursor = conn.cursor()
     try:
-        # Call the dedicated AI analysis function from ai_processor.py.
-        gemini_result = analyze_review_with_gemini(all_reviews_text, uni_name)
+        # Attempt to fetch the pre-generated theme_summary from the database
+        cursor.execute(
+            "SELECT theme_summary FROM exchange_reviews WHERE uni_name = %s LIMIT 1;",
+            (uni_name,)
+        )
+        result = cursor.fetchone()
 
-        if gemini_result and gemini_result.get("theme_summary"):
-            return jsonify({"summary": gemini_result["theme_summary"]}), 200
+        if result and result[0]:
+            return jsonify({"summary": result[0]}), 200
         else:
-            return jsonify({"error": "AI summary could not be generated or was empty."}), 500
+            return jsonify({"summary": f"No AI summary found for {uni_name}. Please run ai_processor.py to generate summaries."}), 200
     except Exception as e:
-        # Log the detailed error on the server side, but return a generic error to the client.
-        print(f"Synthesis failed for {uni_name}: {e}")
-        return jsonify({"error": "Failed to generate AI summary due to an internal error."}), 500
+        print(f"Error fetching AI summary from database for {uni_name}: {e}")
+        return jsonify({"error": "Failed to fetch AI summary from database due to an internal error."}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 
 # --- 5. Flask Routes ---
 
@@ -118,7 +116,22 @@ def get_unis_live():
     cursor = conn.cursor()
     try:
         # Query all records from the table to display all universities.
-        cursor.execute("SELECT * FROM exchange_reviews;")
+        # For the /api/unis endpoint, we'll return an aggregated view by default
+        cursor.execute("""
+            SELECT
+                uni_name,
+                city,
+                COUNT(*) AS review_count,
+                ROUND(AVG(academics_score)::numeric, 2) AS avg_academics,
+                ROUND(AVG(cost_score)::numeric, 2) AS avg_cost,
+                ROUND(AVG(social_score)::numeric, 2) AS avg_social,
+                ROUND(AVG(accommodation_score)::numeric, 2) AS avg_accommodation,
+                AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric AS overall_score
+            FROM
+                exchange_reviews
+            GROUP BY
+                uni_name, city;
+        """)
         records = cursor.fetchall()
 
         # Get column names dynamically for flexible JSON conversion.
@@ -135,6 +148,52 @@ def get_unis_live():
         if cursor: cursor.close()
         if conn: conn.close()
 
+@app.route('/api/university/<uni_name>', methods=['GET'])
+def get_university_details(uni_name):
+    """Fetches aggregated details for a specific university, including AI summary."""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT
+                uni_name,
+                city,
+                COUNT(*) AS review_count,
+                ROUND(AVG(academics_score)::numeric, 2) AS avg_academics,
+                ROUND(AVG(cost_score)::numeric, 2) AS avg_cost,
+                ROUND(AVG(social_score)::numeric, 2) AS avg_social,
+                ROUND(AVG(accommodation_score)::numeric, 2) AS avg_accommodation,
+                ROUND(AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric, 2) AS overall_score,
+                -- Fetching a theme_summary (assuming it's consistent across reviews for a uni, or picking one)
+                (SELECT theme_summary FROM exchange_reviews WHERE uni_name = %s AND theme_summary IS NOT NULL LIMIT 1) AS theme_summary
+            FROM
+                exchange_reviews
+            WHERE
+                uni_name = %s
+            GROUP BY
+                uni_name, city;
+        """, (uni_name, uni_name))
+        
+        record = cursor.fetchone()
+        print(f"Raw record from DB for {uni_name}: {record}") # DEBUG LOG
+
+        if record:
+            column_names = [desc[0] for desc in cursor.description]
+            university_data = dict(zip(column_names, record))
+            print(f"Aggregated university data returned: {university_data}") # DEBUG LOG
+            return jsonify(university_data)
+        else:
+            return jsonify({"error": f"University {uni_name} not found or no reviews available."}), 404
+    except Exception as e:
+        print(f"Error fetching aggregated university details for {uni_name}: {e}")
+        return jsonify({"error": "Failed to fetch university details due to an internal error."}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
 @app.route('/api/reviews/<uni_name>', methods=['GET'])
 def get_individual_reviews(uni_name):
     """Fetches all individual reviews for a specific university."""
@@ -146,7 +205,7 @@ def get_individual_reviews(uni_name):
     try:
         # Use a parameterized query to prevent SQL injection and filter reviews by university name.
         cursor.execute(
-            "SELECT * FROM exchange_reviews WHERE uni_name = %s;",
+            "SELECT id, uni_name, raw_review_text FROM exchange_reviews WHERE uni_name = %s;",
             (uni_name,)
         )
         records = cursor.fetchall()
