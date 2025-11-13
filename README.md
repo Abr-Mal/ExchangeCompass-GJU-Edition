@@ -24,6 +24,12 @@ The application provides the following actionable features:
     * Unifies two data streams: **Consent-based Survey Responses** (high trust) and **Anonymized Web-Scraped Reviews** (high volume). Users can filter results based on the data source.
 4.  **Interactive Comparison Dashboard:**
     * Allows users to select two universities for a side-by-side comparison of all ABSA scores, core cost metrics, and underlying qualitative review summaries.
+5.  **User Review Submission:**
+    * Enables students to directly submit their reviews and aspect-based scores for universities.
+6.  **Admin Moderation System:**
+    * Implements a review moderation workflow where user-submitted reviews require admin approval before being publicly displayed.
+7.  **Performance Optimization (Caching):**
+    * Introduces caching for AI-generated summaries and aggregated university details to significantly reduce latency and improve response times.
 
 ---
 
@@ -32,12 +38,13 @@ The application provides the following actionable features:
 | Component | Technology | Role in Project |
 | :--- | :--- | :--- |
 | **Backend/AI Logic** | **Python (Flask)** | Handles the core business logic, database interaction, and powers the data processing scripts. |
-| **Artificial Intelligence** | **Google Gemini API** | Executes the multilingual Aspect-Based Sentiment Analysis and generates structured JSON output. |
+| **Artificial Intelligence** | **Google Gemini API** | Executes the multilingual Aspect-Based Sentiment Analysis and generates structured JSON output. Now with **summary caching** for improved performance. |
 | **Data Acquisition** | **BeautifulSoup** / **Requests** | Used for ethical web scraping of publicly available university review sites and forums. |
-| **Database** | **PostgreSQL** | Relational database used for storing structured cost data and the processed, enriched sentiment scores. |
+| **Database** | **PostgreSQL** | Relational database used for storing structured cost data and the processed, enriched sentiment scores, including **review moderation status** and `reviewer_type`. |
+| **Backend/Admin Security** | **API Key** | Simple API key implementation to secure administrative endpoints for review moderation. |
 | **Frontend/UI** | **React** | Used for building a component-based, responsive, and interactive user interface. |
 | **Visualization** | **Chart.js** | Used to generate dynamic Comparative Bar Charts and Radar Diagrams for visual insights. |
-| **Deployment** | **Vercel/Netlify** (Frontend) & **Cloud Run/Heroku** (Backend) | Planned for a professional, scalable live deployment. |
+| **Deployment** | **Vercel/Netlify** (Frontend) & **Render** (Backend) | Planned for a professional, scalable live deployment. |
 
 ---
 
@@ -49,8 +56,9 @@ Follow these steps to get the ExchangeCompass application up and running on your
 
 *   **Python 3.8+**
 *   **Node.js 18+**
-*   **PostgreSQL**: Ensure you have a PostgreSQL server running and accessible.
+*   **PostgreSQL**: Ensure you have a PostgreSQL server running and accessible. Updated database schema now requires `reviewer_type`, `overall_sentiment`, and `status` columns in `exchange_reviews` table.
 *   **Google Gemini API Key**: Obtain an API key from the Google Cloud Console or AI Studio.
+*   **Admin API Key**: A secret key required for authenticating with backend admin endpoints (for moderation).
 
 #### 4.1. Backend Setup
 
@@ -74,17 +82,18 @@ Follow these steps to get the ExchangeCompass application up and running on your
     ```
 
 4.  **Create a `.env` file:**
-    In the `backend` directory, create a file named `.env` and add your database credentials and Gemini API key. Replace the placeholder values with your actual information.
+    In the `backend` directory, create a file named `.env` and add your database credentials, Gemini API key, and Admin API key. Replace the placeholder values with your actual information.
     ```
     DB_HOST=your_db_host
     DB_NAME=your_db_name
     DB_USER=your_db_user
     DB_PASSWORD=your_db_password
     GEMINI_API_KEY=your_gemini_api_key
+    ADMIN_API_KEY=your_admin_api_key # New: Required for admin moderation endpoints
     ```
 
-5.  **Database Schema (example for `exchange_reviews` table):**
-    Connect to your PostgreSQL database and create the `exchange_reviews` table if it doesn't exist. Here's a sample schema:
+5.  **Database Schema (for `exchange_reviews` table):**
+    Connect to your PostgreSQL database and ensure the `exchange_reviews` table exists with the updated schema. Here's the complete schema:
     ```sql
     CREATE TABLE exchange_reviews (
         id SERIAL PRIMARY KEY,
@@ -98,12 +107,20 @@ Follow these steps to get the ExchangeCompass application up and running on your
         cost_score INTEGER,
         social_score INTEGER,
         accommodation_score INTEGER,
-        theme_summary TEXT
+        theme_summary TEXT,
+        reviewer_type VARCHAR(50) DEFAULT 'ai_processed', -- New: 'ai_processed' or 'user_submitted'
+        status VARCHAR(20) DEFAULT 'approved'            -- New: 'pending', 'approved', or 'rejected'
     );
     ```
+    *If your table already exists, run these `ALTER TABLE` commands to add the new columns:*
+    ```sql
+    ALTER TABLE exchange_reviews ADD COLUMN reviewer_type VARCHAR(50) DEFAULT 'ai_processed';
+    ALTER TABLE exchange_reviews ADD COLUMN overall_sentiment VARCHAR(50);
+    ALTER TABLE exchange_reviews ADD COLUMN status VARCHAR(20) DEFAULT 'approved';
+    ```
 
-6.  **Run the AI Processor to populate the database (optional, for initial data):**
-    This script will read from `data/raw_survey_data.csv` and `frontend/src/mock_reviews.html`, process reviews with Gemini, and insert them into your database.
+6.  **Run the AI Processor to populate/update the database:**
+    This script reads from `data/raw_survey_data.csv` and `frontend/src/mock_reviews.html`, processes reviews with Gemini (caching AI summaries), and inserts/updates them into your database. It also ensures initial data is marked `approved`.
     ```bash
     python ai_processor.py
     ```
@@ -116,7 +133,25 @@ Follow these steps to get the ExchangeCompass application up and running on your
     ```
     The backend will typically run on `http://127.0.0.1:5000`.
 
-#### 4.2. Frontend Setup
+#### 4.3. Admin Moderation (Local)
+
+To manage user-submitted reviews (approve/reject) using a local script:
+
+1.  **Ensure `requests` and `python-dotenv` are installed** in your backend virtual environment:
+    ```bash
+    pip install requests python-dotenv
+    ```
+2.  **Ensure your Flask backend server is running** (as described in step 4.1.7 above).
+3.  **Run the `admin_moderator.py` script** in a *separate terminal* (after activating your virtual environment):
+    ```bash
+    cd backend
+    .\venv\Scripts\activate   # Windows
+    source venv/bin/activate # macOS/Linux
+    python admin_moderator.py
+    ```
+4.  The script will prompt you for actions (`list_pending`, `approve`, `reject`, `exit`). Use `list_pending` to see IDs of reviews awaiting approval, then `approve` or `reject` with the review ID.
+
+#### 4.4. Frontend Setup
 
 1.  **Navigate to the `frontend` directory:**
     ```bash
@@ -128,11 +163,12 @@ Follow these steps to get the ExchangeCompass application up and running on your
     npm install
     ```
 
-3.  **Configure Backend URL (if different from default):**
-    If your backend is running on a different URL or port than `http://127.0.0.1:5000`, create a `.env` file in the `frontend` directory and specify it:
-    ```
-    VITE_BACKEND_URL=http://your_backend_ip:your_backend_port
-    ```
+3.  **Configure Backend URL (for Local Development & Deployment):**
+    *   **For local development:** If your backend is running on a different URL or port than `http://127.0.0.1:5000`, create a `.env` file in the `frontend` directory and specify it:
+        ```
+        VITE_BACKEND_URL=http://your_backend_ip:your_backend_port
+        ```
+    *   **For deployment (Vercel/Netlify):** You **must** set `VITE_BACKEND_URL` in your deployment platform's environment variables to the public URL of your deployed Render backend service.
 
 4.  **Run the React development server:**
     ```bash
@@ -145,20 +181,23 @@ Follow these steps to get the ExchangeCompass application up and running on your
 ### 5. Known Limitations
 
 *   **Basic Language Detection:** The current language detection in `ai_processor.py` (for `raw_language`) is a simple heuristic that differentiates between English and Arabic based on character ranges. It may not be accurate for all cases or other languages.
+*   **Lack of Advanced Admin UI:** Currently, admin moderation is handled via a local Python script and direct API calls. A full-featured admin user interface is not yet implemented.
+*   **Single-User API Key Security:** The current API key implementation is suitable for a single administrator. For multi-user administrative access, a more robust authentication system (e.g., JWT) would be required.
 
 ---
 
 ### 6. Ethical & Security Commitments
 
-* **Data Integrity & Privacy:** All data collected via the survey includes a **mandatory consent statement**. All data, regardless of source, is immediately **anonymized** before storage.
-* **No PII Stored:** No personal information (user names, IDs, email addresses, or direct source links) is ever stored or displayed.
-* **Scraping:** Web scraping is strictly limited to **publicly accessible, non-gated text** only and adheres to all ethical scraping practices (rate limiting, robots.txt consideration).
+*   **Data Integrity & Privacy:** All data collected via the survey includes a **mandatory consent statement**. All data, regardless of source, is immediately **anonymized** before storage.
+*   **No PII Stored:** No personal information (user names, IDs, email addresses, or direct source links) is ever stored or displayed.
+*   **Scraping:** Web scraping is strictly limited to **publicly accessible, non-gated text** only and adheres to all ethical scraping practices (rate limiting, robots.txt consideration).
+*   **Admin API Key Security Note:** It is **CRITICAL** to keep your `ADMIN_API_KEY` confidential. For deployed applications, always set this as a secure environment variable on your hosting platform (e.g., Render) and **never commit it directly to your codebase.**
 
 ---
 
 ### 🔮 7. Project Status
 
-**Current Phase:** Week 1 - Foundation and Setup
+**Current Phase:** Feature Enhancement & Deployment Preparation (Review System, Moderation, Caching)
 
 **Live Demo URL:** (To be added upon final deployment in Phase 5)
 
