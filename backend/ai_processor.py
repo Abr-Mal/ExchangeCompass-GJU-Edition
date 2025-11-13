@@ -91,6 +91,22 @@ def analyze_review_with_gemini(review_text, uni_name):
         print(f"❌ Gemini API call failed for {uni_name}: {e}")
         return None
 
+def assign_mock_majors(uni_name):
+    """Assigns mock major data based on the university name."""
+    # This is a placeholder function. In a real application, you would have a
+    # more sophisticated logic to determine the major based on uni_name.
+    # For now, we'll return a dummy major.
+    if "University of Technology" in uni_name:
+        return ["Computer Science", "Electrical Engineering"]
+    elif "University of Arts" in uni_name:
+        return ["Graphic Design", "Animation"]
+    elif "University of Medicine" in uni_name:
+        return ["Medicine", "Pharmacy"]
+    elif "University of Engineering" in uni_name:
+        return ["Mechanical Engineering", "Civil Engineering"]
+    else:
+        return ["General Studies"]
+
 def process_data_pipeline():
     """Reads raw CSV data, cleans it, and processes reviews with Gemini."""
 
@@ -152,7 +168,8 @@ def process_data_pipeline():
                 'city': row['city'],
                 'source_type': row.get('source_type', 'csv_survey'), # Default to csv_survey if not specified.
                 'raw_review_text': row['raw_review_text'],
-                **gemini_result # Unpack the dictionary containing AI scores and summary.
+                **gemini_result, # Unpack the dictionary containing AI scores and summary.
+                'major': assign_mock_majors(row['uni_name']) # Assign mock majors
             }
             processed_records.append(record)
             print(f"✅ Successfully processed and enriched review for: {row['uni_name']}")
@@ -173,10 +190,9 @@ def insert_records(records):
 
     cursor = conn.cursor()
     # Define the columns that we are inserting data into in the `exchange_reviews` table.
-    # Added 'reviewer_type' to the columns.
     columns = (
         "uni_name, city, source_type, raw_language, academics_score, "
-        "cost_score, social_score, accommodation_score, theme_summary, raw_review_text, reviewer_type, status"
+        "cost_score, social_score, accommodation_score, theme_summary, raw_review_text, reviewer_type, status, major"
     )
     
     insert_count = 0
@@ -202,7 +218,8 @@ def insert_records(records):
                 record['theme_summary'],
                 record['raw_review_text'],
                 record_reviewer_type,
-                record_status
+                record_status,
+                record['major'] # Include the major array
             )
 
             # Check if the record already exists based on uni_name, raw_review_text, and reviewer_type
@@ -225,7 +242,8 @@ def insert_records(records):
                         social_score = %s,
                         accommodation_score = %s,
                         theme_summary = %s,
-                        status = %s
+                        status = %s,
+                        major = %s
                     WHERE id = %s;
                 """
                 cursor.execute(sql_update, (
@@ -238,6 +256,7 @@ def insert_records(records):
                     record['accommodation_score'],
                     record['theme_summary'],
                     record_status, # Update status to approved for AI-processed reviews
+                    record['major'],
                     existing_record[0]
                 ))
                 update_count += 1

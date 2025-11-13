@@ -172,8 +172,8 @@ def submit_review():
             INSERT INTO exchange_reviews (
                 uni_name, city, source_type, raw_review_text, raw_language,
                 overall_sentiment, academics_score, cost_score, social_score,
-                accommodation_score, theme_summary, reviewer_type, status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                accommodation_score, theme_summary, reviewer_type, status, major
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
         # For user-submitted reviews, we'll use placeholder values for AI-generated fields initially.
         # The AI processor will eventually update theme_summary based on all text.
@@ -192,7 +192,8 @@ def submit_review():
             review_data['accommodation_score'],
             review_data.get('theme_summary', 'User-provided review.'), # Placeholder summary
             'user_submitted', # Explicitly set reviewer type
-            'pending' # New reviews are pending approval
+            'pending', # New reviews are pending approval
+            None # Major not collected from user reviews currently
         )
         
         cursor.execute(sql_insert, values)
@@ -231,6 +232,7 @@ def get_university_details(uni_name):
                 ROUND(AVG(social_score)::numeric, 2) AS avg_social,
                 ROUND(AVG(accommodation_score)::numeric, 2) AS avg_accommodation,
                 ROUND(AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric, 2) AS overall_score,
+                major, -- Include the major column
                 -- Fetching a theme_summary, prioritizing AI-processed ones
                 (SELECT theme_summary FROM exchange_reviews WHERE uni_name = %s AND theme_summary IS NOT NULL AND reviewer_type = 'ai_processed' AND status = 'approved' LIMIT 1) AS theme_summary
             FROM
@@ -238,7 +240,7 @@ def get_university_details(uni_name):
             WHERE
                 uni_name = %s AND status = 'approved'
             GROUP BY
-                uni_name, city;
+                uni_name, city, major;
         """, (uni_name, uni_name))
         
         record = cursor.fetchone()
@@ -265,14 +267,17 @@ def get_university_details(uni_name):
 
 @app.route('/api/unis', methods=['GET'])
 def get_unis_live():
-    """Fetches all processed university reviews from the PostgreSQL database."""
+    """Fetches all processed university reviews from the PostgreSQL database, with optional major filtering."""
     conn = get_db_connection()
     if conn is None:
         return jsonify({"error": "Database connection failed"}), 500
 
     cursor = conn.cursor()
     try:
-        cursor.execute("""
+        # Get optional major filter from query parameters
+        filter_major = request.args.get('major')
+
+        sql_query = """
             SELECT
                 uni_name,
                 city,
@@ -281,14 +286,22 @@ def get_unis_live():
                 ROUND(AVG(cost_score)::numeric, 2) AS avg_cost,
                 ROUND(AVG(social_score)::numeric, 2) AS avg_social,
                 ROUND(AVG(accommodation_score)::numeric, 2) AS avg_accommodation,
-                AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric AS overall_score
+                AVG((academics_score + cost_score + social_score + accommodation_score) / 4.0)::numeric AS overall_score,
+                major -- Include the major column
             FROM
                 exchange_reviews
             WHERE
                 status = 'approved'
-            GROUP BY
-                uni_name, city;
-        """)
+        """
+        query_params = []
+
+        if filter_major:
+            sql_query += " AND %s = ANY(major)"
+            query_params.append(filter_major)
+        
+        sql_query += " GROUP BY uni_name, city, major;"
+
+        cursor.execute(sql_query, query_params)
         records = cursor.fetchall()
 
         # Get column names dynamically for flexible JSON conversion.
@@ -411,6 +424,27 @@ def get_pending_reviews_endpoint():
     except Exception as e:
         print(f"Error fetching pending reviews for admin: {e}")
         return jsonify({"error": "Failed to fetch pending reviews due to an internal error."}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@app.route('/api/majors', methods=['GET'])
+def get_majors():
+    """Fetches a distinct list of all majors from approved reviews."""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    cursor = conn.cursor()
+    try:
+        # Ensure we only fetch majors from approved reviews that actually have major data
+        cursor.execute("SELECT DISTINCT unnest(major) FROM exchange_reviews WHERE status = 'approved' AND major IS NOT NULL AND major != '{}';")
+        majors = [row[0] for row in cursor.fetchall()]
+        majors.sort() # Sort alphabetically for consistent display
+        return jsonify(majors), 200
+    except Exception as e:
+        print(f"Error fetching majors: {e}")
+        return jsonify({"error": "Failed to fetch majors due to an internal error."}), 500
     finally:
         if cursor: cursor.close()
         if conn: conn.close()

@@ -227,3 +227,20 @@ a:hover {
     padding: 0.75rem;
   }
 }
+
+.major-filter-map-header .form-select {
+  max-width: 150px; /* Limit width of the dropdown */
+  margin-left: auto; /* Push it to the right */
+  background-color: var(--bs-primary); /* Use Bootstrap primary color */
+  color: var(--bs-white); /* Ensure text is white for contrast */
+  border-color: var(--bs-primary); /* Match border color */
+}
+
+.major-filter-map-header .form-select option {
+  background-color: var(--bs-primary); /* Apply primary color to options */
+  color: var(--bs-white); /* Ensure text is white in options */
+}
+
+.major-filter-map-header label {
+  margin-right: 0.5rem; /* Space between label and dropdown */
+}

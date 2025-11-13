@@ -47,6 +47,10 @@ function App() {
   const [showAIReview, setShowAIReview] = useState(false);
   const [loadingAISummary, setLoadingAISummary] = useState(false);
 
+  // State for major filtering
+  const [selectedMajor, setSelectedMajor] = useState(''); // '' means no filter
+  const [availableMajorsList, setAvailableMajorsList] = useState([]);
+
   // State for new review form
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [newReviewText, setNewReviewText] = useState('');
@@ -208,7 +212,21 @@ function App() {
   useEffect(() => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
   
-    axios.get(`${BACKEND_URL}/api/unis`)
+    // Fetch available majors
+    axios.get(`${BACKEND_URL}/api/majors`)
+      .then(response => {
+        setAvailableMajorsList(response.data);
+      })
+      .catch(err => {
+        console.error("Error fetching majors:", err);
+      });
+
+    // Fetch universities, applying major filter if selected
+    const unisUrl = selectedMajor 
+      ? `${BACKEND_URL}/api/unis?major=${encodeURIComponent(selectedMajor)}`
+      : `${BACKEND_URL}/api/unis`;
+
+    axios.get(unisUrl)
       .then(response => {
         setUnis(response.data);
         setLoading(false);
@@ -218,7 +236,7 @@ function App() {
         setError("Failed to fetch university data from backend. Please check if the server is running or reachable.");
         setLoading(false);
       });
-  }, []);
+  }, [selectedMajor]); // Add selectedMajor to dependency array to re-fetch when filter changes
   
   // Small helper to read a numeric score from multiple possible backend field names
   const readScore = (obj, keys) => {
@@ -544,8 +562,23 @@ function App() {
         {/* RIGHT: MAP */}
         <div className="right-pane">
           <div className="card h-100 shadow-lg">
-            <div className="card-header bg-dark text-white">
-              Geospatial View (Cost of Living Heatmap)
+            <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+              <span>Geospatial View (Cost of Living Heatmap)</span>
+              {/* Major Filter Dropdown integrated into the map header */}
+              <div className="major-filter-map-header">
+                <label htmlFor="majorFilterMap" className="visually-hidden">Filter by Major:</label>
+                <select 
+                  id="majorFilterMap" 
+                  className="form-select form-select-sm text-white border-secondary"
+                  value={selectedMajor}
+                  onChange={(e) => setSelectedMajor(e.target.value)}
+                >
+                  <option value="">All Majors</option>
+                  {availableMajorsList.map(major => (
+                    <option key={major} value={major}>{major}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="card-body p-0 d-flex flex-column" style={{minHeight: 0}}>
               <MapComponent 
