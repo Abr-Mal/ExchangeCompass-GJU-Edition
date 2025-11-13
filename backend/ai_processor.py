@@ -173,47 +173,90 @@ def insert_records(records):
 
     cursor = conn.cursor()
     # Define the columns that we are inserting data into in the `exchange_reviews` table.
+    # Added 'reviewer_type' to the columns.
     columns = (
         "uni_name, city, source_type, raw_language, academics_score, "
-        "cost_score, social_score, accommodation_score, theme_summary, raw_review_text"
+        "cost_score, social_score, accommodation_score, theme_summary, raw_review_text, reviewer_type, status"
     )
     
-    # Placeholder values for the SQL query (10 columns, matching the number of columns above).
-    placeholders = ', '.join(['%s'] * 10)
-    
-    sql_insert = f"""
-        INSERT INTO exchange_reviews ({columns}) 
-        VALUES ({placeholders});
-    """
-    
     insert_count = 0
+    update_count = 0
     try:
         for record in records:
             # Prepare the tuple of values, ensuring the order matches the columns defined above.
-            # A simple heuristic for language detection: check for presence of Arabic Unicode range.
             raw_language_guess = 'ar' if any('\u0600' <= c <= '\u06FF' for c in record['raw_review_text']) else 'en'
+            
+            # For AI-processed records, ensure reviewer_type is 'ai_processed' and status is 'approved'
+            record_reviewer_type = 'ai_processed'
+            record_status = 'approved'
 
             values = (
                 record['uni_name'],
                 record['city'],
-                record.get('source_type', 'unknown'), # Default to 'unknown' if source_type is missing.
+                record.get('source_type', 'unknown'),
                 raw_language_guess,
                 record['academics_score'],
                 record['cost_score'],
                 record['social_score'],
                 record['accommodation_score'],
                 record['theme_summary'],
-                record['raw_review_text']
+                record['raw_review_text'],
+                record_reviewer_type,
+                record_status
             )
-            cursor.execute(sql_insert, values)
-            insert_count += 1
+
+            # Check if the record already exists based on uni_name, raw_review_text, and reviewer_type
+            cursor.execute(
+                "SELECT id FROM exchange_reviews WHERE uni_name = %s AND raw_review_text = %s AND reviewer_type = %s;",
+                (record['uni_name'], record['raw_review_text'], record_reviewer_type)
+            )
+            existing_record = cursor.fetchone()
+
+            if existing_record:
+                # If record exists, update its AI-generated fields and status
+                sql_update = """
+                    UPDATE exchange_reviews
+                    SET 
+                        city = %s,
+                        source_type = %s,
+                        raw_language = %s,
+                        academics_score = %s,
+                        cost_score = %s,
+                        social_score = %s,
+                        accommodation_score = %s,
+                        theme_summary = %s,
+                        status = %s
+                    WHERE id = %s;
+                """
+                cursor.execute(sql_update, (
+                    record['city'],
+                    record.get('source_type', 'unknown'),
+                    raw_language_guess,
+                    record['academics_score'],
+                    record['cost_score'],
+                    record['social_score'],
+                    record['accommodation_score'],
+                    record['theme_summary'],
+                    record_status, # Update status to approved for AI-processed reviews
+                    existing_record[0]
+                ))
+                update_count += 1
+            else:
+                # If record does not exist, insert a new one
+                placeholders = ', '.join(['%s'] * len(columns.split(', ')))
+                sql_insert = f"""
+                    INSERT INTO exchange_reviews ({columns}) 
+                    VALUES ({placeholders});
+                """
+                cursor.execute(sql_insert, values)
+                insert_count += 1
         
         conn.commit()
-        print(f"✅ SUCCESS: Successfully inserted {insert_count} records into the database.")
+        print(f"✅ SUCCESS: Successfully inserted {insert_count} new records and updated {update_count} existing records into the database.")
         
     except Exception as e:
         conn.rollback() # Rollback any partial inserts on error to maintain database consistency.
-        print(f"❌ ERROR during insertion into database: {e}")
+        print(f"❌ ERROR during insertion/update into database: {e}")
         
     finally:
         if cursor: cursor.close()

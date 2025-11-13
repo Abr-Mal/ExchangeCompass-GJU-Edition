@@ -13,3 +13,6 @@
 Thumbs.db
 __pycache__/
 *.sqlite3 
+
+# Admin tools
+backend/admin_moderator.py

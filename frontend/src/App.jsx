@@ -47,6 +47,16 @@ function App() {
   const [showAIReview, setShowAIReview] = useState(false);
   const [loadingAISummary, setLoadingAISummary] = useState(false);
 
+  // State for new review form
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newReviewText, setNewReviewText] = useState('');
+  const [newAcademicsScore, setNewAcademicsScore] = useState(3); // Default to 3
+  const [newCostScore, setNewCostScore] = useState(3); // Default to 3
+  const [newSocialScore, setNewSocialScore] = useState(3); // Default to 3
+  const [newAccommodationScore, setNewAccommodationScore] = useState(3); // Default to 3
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState(null); // For success/error messages
+
   // New state for comparison feature
   const [compareUni1, setCompareUni1] = useState(null);
   const [compareUni2, setCompareUni2] = useState(null);
@@ -133,6 +143,64 @@ function App() {
       setCompareUni2(null);
     } else {
       console.warn("Both comparison slots are full. To compare a new university, please deselect one first.");
+    }
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!selectedUniDetails || !newReviewText.trim()) {
+      setReviewMessage({
+        type: 'danger',
+        text: 'Please select a university and provide a review text.'
+      });
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewMessage(null); // Clear previous messages
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000";
+
+    try {
+      const reviewData = {
+        uni_name: selectedUniDetails.uni_name,
+        city: selectedUniDetails.city,
+        raw_review_text: newReviewText,
+        academics_score: parseInt(newAcademicsScore),
+        cost_score: parseInt(newCostScore),
+        social_score: parseInt(newSocialScore),
+        accommodation_score: parseInt(newAccommodationScore),
+      };
+
+      const response = await axios.post(`${BACKEND_URL}/api/submit_review`, reviewData);
+
+      if (response.status === 201) {
+        setReviewMessage({
+          type: 'success',
+          text: 'Review submitted successfully! It will be visible shortly.'
+        });
+        // Optionally clear the form or hide it
+        setNewReviewText('');
+        setNewAcademicsScore(3);
+        setNewCostScore(3);
+        setNewSocialScore(3);
+        setNewAccommodationScore(3);
+        setShowReviewForm(false);
+        // Re-fetch university details and reviews to reflect the new submission
+        fetchAggregatedUniversityDetails(selectedUniDetails.uni_name);
+      } else {
+        setReviewMessage({
+          type: 'danger',
+          text: `Failed to submit review: ${response.data.error || 'Unknown error'}`
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      setReviewMessage({
+        type: 'danger',
+        text: `Failed to submit review: ${error.response?.data?.error || error.message}`
+      });
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -377,15 +445,83 @@ function App() {
                     </div>
                   )}
 
+                  {/* Add Review Button */}
+                  <div className="mb-3">
+                    <Button variant="outline-primary" onClick={() => setShowReviewForm(s => !s)}>
+                      {showReviewForm ? 'Cancel Review' : 'Add Your Review'}
+                    </Button>
+                  </div>
+
+                  {/* Review Submission Form */}
+                  {showReviewForm && (
+                    <div className="review-form-section mb-4 p-3 border rounded bg-light">
+                      <h6>Submit Your Review for {selectedUniDetails.uni_name}</h6>
+                      {reviewMessage && (
+                        <div className={`alert alert-${reviewMessage.type}`} role="alert">
+                          {reviewMessage.text}
+                        </div>
+                      )}
+                      <form onSubmit={handleSubmitReview}>
+                        <div className="mb-3">
+                          <label htmlFor="reviewText" className="form-label small">Your Comments:</label>
+                          <textarea
+                            className="form-control"
+                            id="reviewText"
+                            rows="3"
+                            value={newReviewText}
+                            onChange={(e) => setNewReviewText(e.target.value)}
+                            required
+                            disabled={submittingReview}
+                          ></textarea>
+                        </div>
+                        <div className="row mb-3">
+                          <div className="col-md-6 mb-2">
+                            <label htmlFor="academicsScore" className="form-label small">Academics (1-5):</label>
+                            <input type="number" className="form-control" id="academicsScore" min="1" max="5" value={newAcademicsScore} onChange={(e) => setNewAcademicsScore(e.target.value)} disabled={submittingReview} />
+                          </div>
+                          <div className="col-md-6 mb-2">
+                            <label htmlFor="costScore" className="form-label small">Cost (1-5, 5=cheap):</label>
+                            <input type="number" className="form-control" id="costScore" min="1" max="5" value={newCostScore} onChange={(e) => setNewCostScore(e.target.value)} disabled={submittingReview} />
+                          </div>
+                          <div className="col-md-6 mb-2">
+                            <label htmlFor="socialScore" className="form-label small">Social (1-5):</label>
+                            <input type="number" className="form-control" id="socialScore" min="1" max="5" value={newSocialScore} onChange={(e) => setNewSocialScore(e.target.value)} disabled={submittingReview} />
+                          </div>
+                          <div className="col-md-6 mb-2">
+                            <label htmlFor="accommodationScore" className="form-label small">Accommodation (1-5, 5=easy):</label>
+                            <input type="number" className="form-control" id="accommodationScore" min="1" max="5" value={newAccommodationScore} onChange={(e) => setNewAccommodationScore(e.target.value)} disabled={submittingReview} />
+                          </div>
+                        </div>
+                        <Button type="submit" variant="success" disabled={submittingReview}>
+                          {submittingReview ? 'Submitting...' : 'Submit Review'}
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+
                   {/* Student reviews list */}
                   <div className="reviews-section mt-3">
                     <h6>Student reviews</h6>
                     {reviewsRaw && reviewsRaw.length > 0 ? (
                       <div className="reviews-list">
                         {reviewsRaw.slice(0, reviewsVisibleCount).map((r, idx) => (
-                          <div className="review-item" key={idx}>
-                            <div className="review-meta small text-muted">{r.author || r.student || 'Student'} • {r.created_at || r.date || ''}</div>
-                            <div className="review-body">{r.raw_review_text || r.raw_review || r.review_text || r.comment || r.summary || r.theme_summary || 'No text provided'}</div>
+                          <div className="review-item" key={r.id || idx}>
+                            <div className="review-meta small text-muted">
+                              {r.reviewer_type === 'user_submitted' ? 'User Review' : (r.source_type === 'html_scrape' ? 'Web Scrape' : 'Survey')}
+                              {r.academics_score && (
+                                <span className="ms-2 badge bg-primary">A:{r.academics_score}</span>
+                              )}
+                              {r.cost_score && (
+                                <span className="ms-1 badge bg-success">C:{r.cost_score}</span>
+                              )}
+                              {r.social_score && (
+                                <span className="ms-1 badge bg-warning text-dark">S:{r.social_score}</span>
+                              )}
+                              {r.accommodation_score && (
+                                <span className="ms-1 badge bg-info text-dark">H:{r.accommodation_score}</span>
+                              )}
+                            </div>
+                            <div className="review-body">{r.raw_review_text || 'No text provided'}</div>
                           </div>
                         ))}
                       </div>

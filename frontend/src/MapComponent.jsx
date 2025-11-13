@@ -131,14 +131,7 @@ const MapComponent = ({ unis, coords, handleMarkerClick, handleSelectForComparis
                         <Popup>
                             <strong>{uni.uni_name}</strong><br/>
                             {/* Display average scores if reviews exist, otherwise indicate no reviews. */}
-                            {uni.review_count ? (
-                                <>
-                                    Avg. Cost: {costVal ?? '—'}/5<br/>
-                                    Avg. Academics: {academicsVal ?? '—'}/5
-                                </>
-                            ) : (
-                                <span>No reviews yet</span>
-                            )}
+                            {uni.review_count ? null : <span>No reviews yet</span>}
                             <div className="mt-2">
                                 <button className="btn btn-sm btn-outline-info me-1" onClick={() => handleMarkerClick(uni)}>
                                     View Details
