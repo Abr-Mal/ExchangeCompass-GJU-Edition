@@ -1,0 +1,246 @@
+:root {
+  --app-header-height: 96px;
+  --comparison-controls-height: 60px; /* Approximate height for the comparison buttons section */
+
+  /* === GJU Theme Colors === */
+  --primary-color: #F59F2E;    /* GJU orange */
+  --secondary-color: #4D82B8;  /* GJU blue */
+  --text-color: #736A65;       /* muted dark gray */
+  --bg-color: #FFFFFD;         /* off-white background */
+  --border-color: #A9A9A7;     /* light gray */
+}
+
+/* === Base Setup === */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  color: var(--text-color);
+  background: var(--bg-color);
+  font-family: "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  padding-top: var(--app-header-height);
+}
+
+/* === Fixed Header === */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--app-header-height);
+  background: var(--primary-color);
+  color: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
+  padding: 0 1rem;
+}
+
+.app-header .display-5 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+.app-header .lead {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* === Split Screen Layout === */
+.split-screen {
+  position: fixed;
+  /* top will be controlled by inline style */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  z-index: 100; /* Map and detail panes should be below the comparison bar */
+}
+
+/* New comparison view layout */
+.comparison-view-full-width {
+  position: fixed;
+  /* top will be controlled by inline style */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: var(--bg-color); /* Ensure it has a background */
+  z-index: 1000; /* This view should cover the map and detail pane */
+}
+
+/* Comparison bar styling */
+.comparison-bar {
+  position: fixed; /* Changed to fixed to control its position reliably */
+  top: var(--app-header-height);
+  left: 0;
+  width: 100%; /* Ensure it spans full width */
+  z-index: 1050; /* Higher than map and split-screen, same as app-header */
+  height: var(--comparison-controls-height);
+  background: var(--bg-color); /* Match body background */
+  display: flex;
+  align-items: center; /* Vertically center buttons */
+  justify-content: center; /* Horizontally center buttons */
+  padding: 0 1rem; /* Add horizontal padding */
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05); /* Subtle shadow below the bar */
+}
+
+/* 50/50 split */
+.left-pane,
+.right-pane {
+  flex: 1 1 50%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.left-pane {
+  background: var(--bg-color);
+}
+.right-pane {
+  background: var(--bg-color);
+}
+
+/* === Card Styling === */
+.card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-color);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+}
+
+/* === Map Styling === */
+.leaflet-container,
+.map-container {
+  flex: 1 1 auto;
+  height: 100% !important;
+  width: 100% !important;
+  border-radius: 6px;
+}
+
+.card-header.bg-dark {
+  background-color: #0a58ca !important; /* your desired color */
+}
+
+/* === Reviews & AI Text === */
+.ai-review {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.reviews-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding-right: 0.25rem;
+}
+
+.review-item {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.review-item:last-child {
+  border-bottom: none;
+}
+
+.review-meta {
+  font-size: 0.8rem;
+  color: var(--secondary-color);
+  margin-bottom: 0.25rem;
+}
+.review-body {
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+/* === Buttons === */
+.btn-primary,
+.btn-accent {
+  background-color: var(--primary-color);
+  color: var(--bg-color);
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.btn-primary:hover {
+  background-color: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+/* === Links === */
+a, .link {
+  color: var(--secondary-color);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* === Responsive Layout === */
+@media (max-width: 992px) {
+  .split-screen,
+  .comparison-view-full-width {
+    position: static;
+    flex-direction: column;
+    height: auto;
+    top: auto; /* Reset top for static positioning */
+  }
+  body {
+    padding-top: var(--app-header-height); /* Only header padding on small screens */
+  }
+  .left-pane,
+  .right-pane {
+    height: auto;
+    max-width: 100%;
+  }
+  .card-body {
+    padding: 0.75rem;
+  }
+}
+
+.major-filter-map-header .form-select {
+  max-width: 150px; /* Limit width of the dropdown */
+  margin-left: auto; /* Push it to the right */
+  background-color: var(--bs-primary); /* Use Bootstrap primary color */
+  color: var(--bs-white); /* Ensure text is white for contrast */
+  border-color: var(--bs-primary); /* Match border color */
+}
+
+.major-filter-map-header .form-select option {
+  background-color: var(--bs-primary); /* Apply primary color to options */
+  color: var(--bs-white); /* Ensure text is white in options */
+}
+
+.major-filter-map-header label {
+  margin-right: 0.5rem; /* Space between label and dropdown */
+}

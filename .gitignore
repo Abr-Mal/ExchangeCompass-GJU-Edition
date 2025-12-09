@@ -1,0 +1,18 @@
+# --- Critical Security ---
+.env                # DO NOT track environment variables (API keys, DB passwords)
+/backend/.env       # Specific path check for the backend folder
+
+# --- Dependencies & Build Files ---
+/node_modules
+/backend/venv
+/frontend/dist      # Build output folder
+
+# --- Operating System & Logs ---
+*.log
+.DS_Store
+Thumbs.db
+__pycache__/
+*.sqlite3 
+
+# Admin tools
+backend/admin_moderator.py

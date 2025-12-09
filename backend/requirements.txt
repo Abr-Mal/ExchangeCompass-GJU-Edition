@@ -1,0 +1,10 @@
+Flask
+Flask-Cors
+psycopg2-binary
+python-dotenv
+google-generativeai
+gunicorn
+beautifulsoup4
+pandas
+google-api-core
+protobuf
