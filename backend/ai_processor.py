@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import pandas as pd
 import google.generativeai as genai
@@ -173,6 +174,9 @@ def process_data_pipeline():
             }
             processed_records.append(record)
             print(f"✅ Successfully processed and enriched review for: {row['uni_name']}")
+            # Rate limit protection: pause 13 seconds to avoid 429 errors from Gemini API
+            print("⏳ Pausing for 13 seconds to avoid Gemini API rate limit (429 error)...")
+            time.sleep(13)
         else:
             print(f"❌ Failed to get Gemini result for review from {row.get('uni_name', 'Unknown Uni')}. Skipping.")
 
